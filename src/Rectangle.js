@@ -9,6 +9,8 @@
 import Config from './Config';
 import Point from './Point';
 import Line from './Line';
+import Polygon from './Polygon';
+import { lt, isZero } from './Utils';
 
 /**
  * The class represents a rectangle on the plane.
@@ -22,9 +24,9 @@ class Rectangle {
    * Constructs a rectangle.
    *
    * @param {number} left
-   *    the x-coordinate of the left side of the rectangle.
+   *    the x-coordinate of the left side of the original rectangle.
    * @param {number} top
-   *    the y-coordinate of the top side of the rectangle.
+   *    the y-coordinate of the top side of the original rectangle.
    * @param {number} width
    *    the width of the rectangle.
    * @param {number} height
@@ -50,27 +52,17 @@ class Rectangle {
    * @param {Point} translate
    *    the translation of the rectangle, which specifies the offset of the
    *    rectangle from the origin.
-   * @param {string} yAxisDirection
-   *    the oriented direction of the y-axis.
    */
-  constructor(left,
-              top,
-              width,
-              height,
-              scale = 1,
-              rotation = 0,
-              rotationOrigin = 'center',
-              translate = new Point(0, 0),
-              yAxisDirection = Config.DEFAULT_Y_AXIS_DIRECTION) {
+  constructor(left, top, width, height, scale = 1, rotation = 0,
+    rotationOrigin = 'center', translate = new Point(0, 0)) {
     this._left = left;
     this._top = top;
     this._width = width;
     this._height = height;
     this._scale = scale;
-    this._rotation = rotation;
+    this._rotation = (rotation >= 360 ? rotation % 360 : rotation);
     this._rotationOrigin = rotationOrigin;
     this._translate = translate;
-    this._yDirection = yAxisDirection;
     this._init();
     Object.freeze(this);      //  make this object immutable
   }
@@ -83,11 +75,11 @@ class Rectangle {
   _init() {
     this.width = this._width * this._scale;
     this.height = this._height * this._scale;
-    const delta = (this._yDirection === 'up' ? -this.height : this.height);
     const tl = new Point(this._left, this._top);
     const tr = new Point(this._left + this.width, this._top);
-    const bl = new Point(this._left, this._top + delta);
-    const br = new Point(this._left + this.width, this._top + delta);
+    const dy = (Config.Y_AXIS_DIRECTION === 'up' ? -this.height : this.height);
+    const bl = new Point(this._left, this._top + dy);
+    const br = new Point(this._left + this.width, this._top + dy);
     this._corner = {
       'top-left': tl,
       'top-right': tr,
@@ -99,13 +91,13 @@ class Rectangle {
       'middle-right': new Point((tr.x + br.x) / 2, (tr.y + br.y) / 2),
       'center': new Point((tl.x + br.x) / 2, (tl.y + br.y) / 2),
     };
-    if ((this._rotation % 360) !== 0) { // need rotation
+    if (this._rotation !== 0) {     // need rotation
       // calculate the actual rotation origin
       let rotationOrigin = null;
       if (this._rotationOrigin instanceof Point) {
         rotationOrigin = this._rotationOrigin;
       } else if (typeof this._rotationOrigin === 'string') {
-        if (this._corner.hasOwnProperty(this._rotationOrigin)) {
+        if (Object.hasOwn(this._corner, this._rotationOrigin)) {
           rotationOrigin = this._corner[this._rotationOrigin];
         }
       }
@@ -113,27 +105,67 @@ class Rectangle {
         throw new Error(`Invalid rotation origin: ${this._rotationOrigin}`);
       }
       // now we will rotate this rectangle around the rotation origin
-      const rotationRadian = this._rotation * Math.PI / 180;
+      const rotationRadian = (this._rotation * Math.PI) / 180;
       const cos = Math.cos(rotationRadian);
       const sin = Math.sin(rotationRadian);
       const dx = rotationOrigin.x * (1 - cos) + rotationOrigin.y * sin;
       const dy = rotationOrigin.y * (1 - cos) - rotationOrigin.x * sin;
-      for (let key in this._corner) {
-        if (this._corner.hasOwnProperty(key)) {
+      for (const key in this._corner) {
+        if (Object.hasOwn(this._corner, key)) {
           const p = this._corner[key];
           this._corner[key] = new Point(p.x * cos - p.y * sin + dx,
-                                        p.x * sin + p.y * cos + dy);
+            p.x * sin + p.y * cos + dy);
         }
       }
     }
     // translates all the corners
     if (!this._translate.isOrigin()) {
-      for (let key in this._corner) {
-        if (this._corner.hasOwnProperty(key)) {
+      for (const key in this._corner) {
+        if (Object.hasOwn(this._corner, key)) {
           const p = this._corner[key];
           this._corner[key] = p.add(this._translate);
         }
       }
+    }
+    // calculate the left, top, right, bottom boundary
+    this.left = Math.min(
+      this._corner['top-left'].x,
+      this._corner['bottom-left'].x,
+      this._corner['top-right'].x,
+      this._corner['bottom-right'].x,
+    );
+    this.right = Math.max(
+      this._corner['top-left'].x,
+      this._corner['bottom-left'].x,
+      this._corner['top-right'].x,
+      this._corner['bottom-right'].x,
+    );
+    if (Config.Y_AXIS_DIRECTION === 'up') {
+      this.top = Math.max(
+        this._corner['top-left'].y,
+        this._corner['bottom-left'].y,
+        this._corner['top-right'].y,
+        this._corner['bottom-right'].y,
+      );
+      this.bottom = Math.min(
+        this._corner['top-left'].y,
+        this._corner['bottom-left'].y,
+        this._corner['top-right'].y,
+        this._corner['bottom-right'].y,
+      );
+    } else {
+      this.top = Math.min(
+        this._corner['top-left'].y,
+        this._corner['bottom-left'].y,
+        this._corner['top-right'].y,
+        this._corner['bottom-right'].y,
+      );
+      this.bottom = Math.max(
+        this._corner['top-left'].y,
+        this._corner['bottom-left'].y,
+        this._corner['top-right'].y,
+        this._corner['bottom-right'].y,
+      );
     }
   }
 
@@ -228,6 +260,46 @@ class Rectangle {
   }
 
   /**
+   * Get the array of vertexes of this rectangle.
+   *
+   * @return {Point[]}
+   *    the array of vertexes of this rectangle.
+   */
+  vertexes() {
+    return [
+      this._corner['top-left'],
+      this._corner['top-right'],
+      this._corner['bottom-right'],
+      this._corner['bottom-left'],
+    ];
+  }
+
+  /**
+   * Gets the array of sides of this rectangle.
+   *
+   * @return {Line[]}
+   *    the array of sides of this rectangle.
+   */
+  sides() {
+    return [
+      new Line(this._corner['top-left'], this._corner['top-right']),
+      new Line(this._corner['top-right'], this._corner['bottom-right']),
+      new Line(this._corner['bottom-right'], this._corner['bottom-left']),
+      new Line(this._corner['bottom-left'], this._corner['top-left']),
+    ];
+  }
+
+  /**
+   * Gets the polygon representation of this rectangle.
+   *
+   * @return {Polygon}
+   *    the polygon representation of this rectangle.
+   */
+  toPolygon() {
+    return new Polygon(this.vertexes());
+  }
+
+  /**
    * Gets the anchor point of this rectangle.
    *
    * @param {string} anchor
@@ -244,7 +316,7 @@ class Rectangle {
    *    - 'bottom-right': the bottom-right corner of the rectangle.
    */
   anchorPoint(anchor) {
-    if (this._corner.hasOwnProperty(anchor)) {
+    if (Object.hasOwn(this._corner, anchor)) {
       return this._corner[anchor];
     } else {
       throw new Error(`Unknown anchor point: ${anchor}`);
@@ -258,8 +330,7 @@ class Rectangle {
    *     the left side of this rectangle.
    */
   leftSide() {
-    return new Line(this._corner['top-left'],
-                    this._corner['bottom-left']);
+    return new Line(this._corner['top-left'], this._corner['bottom-left']);
   }
 
   /**
@@ -269,8 +340,7 @@ class Rectangle {
    *     the top side of this rectangle.
    */
   topSide() {
-    return new Line(this._corner['top-left'],
-                    this._corner['top-right']);
+    return new Line(this._corner['top-left'], this._corner['top-right']);
   }
 
   /**
@@ -280,8 +350,7 @@ class Rectangle {
    *    the right side of this rectangle.
    */
   rightSide() {
-    return new Line(this._corner['top-right'],
-                    this._corner['bottom-right']);
+    return new Line(this._corner['top-right'], this._corner['bottom-right']);
   }
 
   /**
@@ -291,8 +360,7 @@ class Rectangle {
    *    the bottom side of this rectangle.
    */
   bottomSide() {
-    return new Line(this._corner['bottom-left'],
-                    this._corner['bottom-right']);
+    return new Line(this._corner['bottom-left'], this._corner['bottom-right']);
   }
 
   /**
@@ -306,6 +374,17 @@ class Rectangle {
   }
 
   /**
+   * Tests whether this rectangle is parallel to the x and y axes.
+   *
+   * @return {boolean}
+   *     `true` if this rectangle is parallel to the x and y axes; `false`
+   *     otherwise.
+   */
+  isParallelToAxes() {
+    return isZero(this._rotation % 90);
+  }
+
+  /**
    * Tests whether this rectangle intersects with another rectangle.
    *
    * @param {Rectangle} other
@@ -315,8 +394,31 @@ class Rectangle {
    *    otherwise.
    */
   isIntersectWith(other) {
-    // FIXME
-    return (Math.max(this._topLeft.x, other._topLeft.x) < Math.min(this._bottomRight.x, other._bottomRight.x))
-        && (Math.max(this._topLeft.y, other._topLeft.y) < Math.min(this._bottomRight.y, other._bottomRight.y));
+    if (this.isParallelToAxes() && other.isParallelToAxes()) {
+      if (Config.Y_AXIS_DIRECTION === 'up') {
+        return lt(Math.max(this.left, other.left), Math.min(this.right, other.right))
+            && lt(Math.max(this.bottom, other.bottom), Math.min(this.top, other.top));
+      } else {    // y-axis direction is 'down'
+        return lt(Math.max(this.left, other.left), Math.min(this.right, other.right))
+            && lt(Math.max(this.top, other.top), Math.min(this.bottom, other.bottom));
+      }
+    } else {
+      return this._intersectWithNonParallel(other);
+    }
+  }
+
+  _intersectWithNonParallel(other) {
+    const thisLines = this._getLines();
+    const otherLines = other._getLines();
+    for (const thisLine of thisLines) {
+      for (const otherLine of otherLines) {
+        if (thisLine.isIntersectWith(otherLine)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
+
+export default Rectangle;

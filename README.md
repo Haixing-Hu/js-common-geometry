@@ -1,6 +1,6 @@
-# @haixing_hu/common-util
+# @haixing_hu/common-geometry
 
-A JavaScript ES6 library of common utility functions.
+A JavaScript ES6 library for computational geometry algorithms.
 
 Contributor
 ======

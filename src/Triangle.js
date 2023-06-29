@@ -146,7 +146,7 @@ class Triangle {
    */
   center() {
     return new Point((this.a.x + this.b.x + this.c.x) / 3.0,
-                     (this.a.y + this.b.y + this.c.y) / 3.0);
+      (this.a.y + this.b.y + this.c.y) / 3.0);
   }
 
   /**
@@ -193,11 +193,11 @@ class Triangle {
     const dx = p.x * (1 - cos) + p.y * sin;
     const dy = p.y * (1 - cos) - p.x * sin;
     const new_a = new Point(this.a.x * cos - this.a.y * sin + dx,
-                            this.a.x * sin + this.a.y * cos + dy);
+      this.a.x * sin + this.a.y * cos + dy);
     const new_b = new Point(this.b.x * cos - this.b.y * sin + dx,
-                            this.b.x * sin + this.b.y * cos + dy);
+      this.b.x * sin + this.b.y * cos + dy);
     const new_c = new Point(this.c.x * cos - this.c.y * sin + dx,
-                            this.c.x * sin + this.c.y * cos + dy);
+      this.c.x * sin + this.c.y * cos + dy);
     return new Triangle(new_a, new_b, new_c);
   }
 
@@ -215,3 +215,5 @@ class Triangle {
     return new Triangle(this.a.add(p), this.b.add(p), this.c.add(p));
   }
 }
+
+export default Triangle;

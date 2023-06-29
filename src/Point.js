@@ -7,7 +7,7 @@
  *                                                                            *
  ******************************************************************************/
 import Config from './Config';
-import { eq, isNonPositive, isZero } from './Utils';
+import { eq, geq, leq, isNonPositive, isZero } from './Utils';
 
 /**
  * This class represents a point or a vector in a plane.
@@ -43,7 +43,7 @@ class Point {
   }
 
   /**
-   * alculates the point obtained by adding an offset to this point.
+   * Calculates the point obtained by adding an offset to this point.
    *
    * @param {Point} off
    *    The offset to be added, represented by a Point object o, where o.x
@@ -342,7 +342,7 @@ class Point {
    *    `true` if this point is inside the specified triangle, `false` otherwise.
    */
   isInsideTriangle(triangle) {
-    return this.relationToTriangle(triangle) === 'inside';
+    return (this.relationToTriangle(triangle) === 'inside');
   }
 
   /**
@@ -363,9 +363,9 @@ class Point {
     const sides = triangle.sides();
     const relation = center.relationToLine(sides[0]);
     for (let i = 0; i < 3; ++i) {
-      if (p.isOnLineSegment(sides[i])) {
+      if (this.isOnLineSegment(sides[i])) {
         return 'on';
-      } else if (p.relationToLine(sides[i]) !== relation) {
+      } else if (this.relationToLine(sides[i]) !== relation) {
         return 'outside';
       }
     }
@@ -381,10 +381,50 @@ class Point {
    *    `true` if this point is inside the specified rectangle, `false` otherwise.
    */
   isInsideRectangle(rectangle) {
-    return geq(this.x, rectangle._topLeft.x)
-        && leq(this.x, rectangle._bottomRight.x)
-        && geq(this.y, rectangle._topLeft.y)
-        && leq(this.y, rectangle._bottomRight.y);
+    return (this.relationToRectangle(rectangle) === 'inside');
+  }
+
+  /**
+   * Computes the relationship between this point and a specified rectangle.
+   *
+   * @param {Rectangle} rectangle
+   *    The specified rectangle, which may or may not be parallel to the x-y axes.
+   * @return {string}
+   *    The relationship between this point and the specified rectangle. It can
+   *    be the following possible values:
+   *    - 'inside': indicates that this point is inside the specified rectangle;
+   *    - 'outside': indicates that this point is outside the specified rectangle;
+   *    - 'on': indicates that this point lies on one of the edges of the
+   *      specified rectangle.
+   */
+  relationToRectangle(rectangle) {
+    if (rectangle.isParallelToAxes()) {
+      if (geq(this.x, rectangle.left)
+          && leq(this.x, rectangle.right)
+          && geq(this.y, Math.min(rectangle.bottom, rectangle.top))
+          && leq(this.y, Math.max(rectangle.bottom, rectangle.top))) {
+        if (eq(this.x, rectangle.left)
+            || eq(this.x, rectangle.right)
+            || eq(this.y, rectangle.top)
+            || eq(this.y, rectangle.bottom)) {
+          return 'on';
+        } else {
+          return 'inside';
+        }
+      } else {
+        return 'outside';
+      }
+    } else {
+      const sides = rectangle.sides();
+      for (let i = 0; i < 4; ++i) {
+        if (this.isOnLineSegment(sides[i])) {
+          return 'on';
+        } else if (this.relationToLine(sides[i]) !== 'right') {
+          return 'outside';
+        }
+      }
+      return 'inside';
+    }
   }
 
   /**
@@ -398,7 +438,7 @@ class Point {
    *    otherwise.
    */
   isInsideConvex(convex) {
-    return this.relationToConvex(convex) === 'inside';
+    return (this.relationToConvex(convex) === 'inside');
   }
 
   /**
@@ -409,7 +449,7 @@ class Point {
    *    the returned value of this function may not correct.
    * @return {string}
    *    The relationship between this point and the specified convex polygon. It
-   *    can have the following possible values:
+   *    can be the following possible values:
    *    - 'inside': indicates that this point is inside the specified convex polygon;
    *    - 'outside': indicates that this point is outside the specified convex polygon;
    *    - 'on': indicates that this point lies on one of the edges of the
@@ -420,13 +460,15 @@ class Point {
     if (n < 3) {
       throw new Error('The specified polygon must have at least 3 vertexes.');
     }
-    const q = new Point(0, 0);
+    let q_x = 0;
+    let q_y = 0;
     for (let i = 0; i < n; ++i) {
-      q.x += convex.vertexes[i].x;
-      q.y += convex.vertexes[i].y;
+      q_x += convex.vertexes[i].x;
+      q_y += convex.vertexes[i].y;
     }
-    q.x /= n;
-    q.y /= n;
+    q_x /= n;
+    q_y /= n;
+    const q = new Point(q_x, q_y);
     for (let i = 0; i < n; ++i) {
       const side = convex.side(i);
       if (this.isOnLineSegment(side)) {
@@ -447,7 +489,7 @@ class Point {
    *    `true` if this point is inside the specified polygon, `false` otherwise.
    */
   isInsidePolygon(polygon) {
-    return this.relationToPolygon(polygon) === 'inside';
+    return (this.relationToPolygon(polygon) === 'inside');
   }
 
   /**
@@ -457,7 +499,7 @@ class Point {
    *    The specified polygon.
    * @return {string}
    *    The relationship between this point and the specified polygon. It can
-   *    have the following possible values:
+   *    be the following possible values:
    *    - 'inside': indicates that this point is inside the specified polygon;
    *    - 'outside': indicates that this point is outside the specified polygon;
    *    - 'on': indicates that this point lies on one of the edges of the
@@ -469,7 +511,7 @@ class Point {
     // negative infinity.
     const ray = {
       start: this,
-      end: new Point(- Config.INF, this.y),
+      end: new Point(Config.NEGATIVE_INF, this.y),
     };
     const n = polygon.vertexes.length;
     for (let i = 0; i < n; ++i) {
@@ -478,7 +520,7 @@ class Point {
         return 'on';
       }
       if (eq(side.start.y, side.end.y)) {
-        // This side is parallel to the X ray.
+        // This side is parallel to the X-axis.
         continue;
       }
       if (side.start.isOnLineSegment(ray)) {

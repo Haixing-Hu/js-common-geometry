@@ -154,8 +154,9 @@ class Polygon {
     const sin = Math.sin(angle);
     const dx = p.x * (1 - cos) + p.y * sin;
     const dy = p.y * (1 - cos) - p.x * sin;
-    const vertexes = this.vertexes.map(v => new Point(v.x * cos - v.y * sin + dx,
-                                                      v.x * sin + v.y * cos + dy));
+    const vertexes = this.vertexes.map(
+      (v) => new Point(v.x * cos - v.y * sin + dx, v.x * sin + v.y * cos + dy),
+    );
     return new Polygon(vertexes);
   }
 
@@ -170,6 +171,8 @@ class Polygon {
    *    translating this polygon by the specified displacement.
    */
   translate(p) {
-    return new Polygon(this.vertexes.map(v => v.add(p)));
+    return new Polygon(this.vertexes.map((v) => v.add(p)));
   }
 }
+
+export default Polygon;

@@ -20,7 +20,16 @@ const Config = {
    * since this value may be involved in arithmetic operations, and using
    * `Number.MAX_VALUE` or `Number.INFINITY` would cause an overflow.
    */
-  INF: 1e20,
+  POSITIVE_INF: 1e20,
+
+  /**
+   * A floating point number representing the negative infinity value.
+   *
+   * Note that this value CANNOT be `Number.MAX_VALUE` nor `Number.INFINITY`,
+   * since this value may be involved in arithmetic operations, and using
+   * `Number.MAX_VALUE` or `Number.INFINITY` would cause an overflow.
+   */
+  NEGATIVE_INF: -1e20,
 
   /**
    * The precision when comparing floating point numbers. If the difference
@@ -39,7 +48,7 @@ const Config = {
    *
    * @type {string}
    */
-  DEFAULT_Y_AXIS_DIRECTION: 'up',
+  Y_AXIS_DIRECTION: 'up',
 };
 
 export default Config;
