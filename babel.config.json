@@ -1,0 +1,28 @@
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "modules": "commonjs",
+      "debug": false,
+      "useBuiltIns": "usage",
+      "corejs": "3",
+      "shippedProposals": true
+    }]
+  ],
+  "plugins": [
+    "@babel/plugin-transform-runtime",
+    "babel-plugin-transform-object-hasown",
+    ["@babel/plugin-proposal-decorators", { "legacy": true }],
+    ["@babel/plugin-proposal-class-properties", { "loose": false }],
+    ["module-resolver", {
+      "alias": {
+        "@": "./src"
+      }
+    }]
+  ],
+  "sourceType": "unambiguous",
+  "env": {
+    "test": {
+      "presets": ["@babel/preset-env"]
+    }
+  }
+}
