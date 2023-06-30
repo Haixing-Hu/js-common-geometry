@@ -26,8 +26,8 @@ class Point {
    *    The y-coordinate of the point.
    */
   constructor(x = 0, y = 0) {
-    this.x = x;
-    this.y = y;
+    this.x = x;                 // x-coordinate
+    this.y = y;                 // y-coordinate
     Object.freeze(this);        // make this object immutable
   }
 
@@ -153,7 +153,7 @@ class Point {
   /**
    * Rotates this point by a given angle around a given point.
    *
-   * @param {Point} p
+   * @param {Point} o
    *     The point around which the rotation is performed.
    * @param {number} angle
    *     The angle of rotation, in radians.
@@ -161,12 +161,29 @@ class Point {
    *     A new `Point` object representing the ending position after rotating
    *     this point around the given point by the given angle.
    */
-  rotateAround(p, angle) {
-    const cos = Math.cos(angle);
+  rotateAround(o, angle) {
     const sin = Math.sin(angle);
-    const x = this.x - p.x;
-    const y = this.y - p.y;
-    return new Point(p.x + x * cos - y * sin, p.y + x * sin + y * cos);
+    const cos = Math.cos(angle);
+    return this.rotateAroundImpl(o, sin, cos);
+  }
+
+  /**
+   * Rotates this point by a given angle around a given point.
+   *
+   * @param {Point} o
+   *     The point around which the rotation is performed.
+   * @param {number} sin
+   *     The sine of the rotation angle.
+   * @param {number} cos
+   *     The cosine of the rotation angle.
+   * @return {Point}
+   *     A new `Point` object representing the ending position after rotating
+   *     this point around the given point by the given angle.
+   */
+  rotateAroundImpl(o, sin, cos) {
+    const dx = this.x - o.x;
+    const dy = this.y - o.y;
+    return new Point(o.x + dx * cos - dy * sin, o.y + dx * sin + dy * cos);
   }
 
   /**
@@ -200,6 +217,9 @@ class Point {
   /**
    * Compares this point with another point.
    *
+   * The function will compare the x-coordinates of the two points firstly, and
+   * the compare the y-coordinates of the two points.
+   *
    * @param {Point} p
    *     Another point.
    * @return {number}
@@ -225,7 +245,7 @@ class Point {
    * @return {number}
    *    The Euclidean distance between this point and another point.
    */
-  distance(other) {
+  distanceTo(other) {
     const a = this.x - other.x;
     const b = this.y - other.y;
     return Math.sqrt(a * a + b * b);

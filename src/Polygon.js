@@ -141,7 +141,7 @@ class Polygon {
   /**
    * Rotates this polygon by a given angle around a given point.
    *
-   * @param {Point} p
+   * @param {Point} o
    *     The point around which the rotation is performed.
    * @param {number} angle
    *     The angle of rotation, in radians.
@@ -149,29 +149,25 @@ class Polygon {
    *     A new `Polygon` object representing the result polygon after rotating
    *     this triangle around the given point by the given angle.
    */
-  rotate(p, angle) {
-    const cos = Math.cos(angle);
+  rotate(o, angle) {
     const sin = Math.sin(angle);
-    const dx = p.x * (1 - cos) + p.y * sin;
-    const dy = p.y * (1 - cos) - p.x * sin;
-    const vertexes = this.vertexes.map(
-      (v) => new Point(v.x * cos - v.y * sin + dx, v.x * sin + v.y * cos + dy),
-    );
+    const cos = Math.cos(angle);
+    const vertexes = this.vertexes.map((v) => v.rotateAroundImpl(o, sin, cos));
     return new Polygon(vertexes);
   }
 
   /**
    * Translate this polygon by the specified displacement.
    *
-   * @param {Point} p
+   * @param {Point} delta
    *    The vector represents the displacement by which this polygon is
    *    translated.
    * @return {Polygon}
    *    A new `Polygon` object representing the result polygon after
    *    translating this polygon by the specified displacement.
    */
-  translate(p) {
-    return new Polygon(this.vertexes.map((v) => v.add(p)));
+  translate(delta) {
+    return new Polygon(this.vertexes.map((v) => v.add(delta)));
   }
 }
 

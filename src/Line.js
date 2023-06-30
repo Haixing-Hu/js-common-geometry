@@ -6,7 +6,7 @@
  *    All rights reserved.                                                    *
  *                                                                            *
  ******************************************************************************/
-import {eq, geq, isNonZero, isNonPositive} from './Utils';
+import { eq, geq, isNonZero, isNonPositive } from './Utils';
 import Point from './Point';
 
 /**
@@ -41,7 +41,7 @@ class Line {
    *     The length of this line segment.
    */
   length() {
-    return this.start.distance(this.end);
+    return this.start.distanceTo(this.end);
   }
 
   /**
@@ -65,6 +65,127 @@ class Line {
       (this.start.x + this.end.x) / 2,
       (this.start.y + this.end.y) / 2,
     );
+  }
+
+
+  /**
+   * Calculates the angle between this line and another specified line.
+   *
+   * @param {Line} l
+   *     Another specified line.
+   * @return {number}
+   *     The angle between this line and the other line in radians.
+   */
+  angleWith(l) {
+    const u = this.vector();
+    const v = l.vector();
+    return u.angleWith(v);
+  }
+
+  /**
+   * Calculates the shortest distance from this line to another specified line.
+   *
+   * @param {Line} l
+   *     Another specified line.
+   * @return {number}
+   *     The shortest distance from this line to the other specified line.
+   */
+  distanceTo(l) {
+    if (this.isIntersectWithLine(l)) {
+      return 0;
+    } else {
+      const d1 = this.start.distanceTo(l);
+      const d2 = this.end.distanceTo(l);
+      const d3 = l.start.distanceTo(this);
+      const d4 = l.end.distanceTo(this);
+      return Math.min(d1, d2, d3, d4);
+    }
+  }
+
+  /**
+   * Rotates this line segment around its start point by a specified angle.
+   *
+   * @param {number} angle
+   *     The angle of rotation in radians.
+   * @return {Line}
+   *     A new `Line` object representing the line segment rotated from this
+   *     line segment.
+   */
+  rotate(angle) {
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const newEnd = this.end.rotateAroundImpl(this.start, sin, cos);
+    return new Line(this.start, newEnd);
+  }
+
+  /**
+   * Rotates this line segment around a specified point by a specified angle.
+   *
+   * @param {Point} o
+   *    The specified point.
+   * @param {number} angle
+   *    The angle of rotation in radians.
+   */
+  rotateAround(o, angle) {
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const newStart = this.start.rotateAroundImpl(o, sin, cos);
+    const newEnd = this.start.rotateAroundImpl(o, sin, cos);
+    return new Line(newStart, newEnd);
+  }
+
+  /**
+   * Translate this line segment by the specified displacement.
+   *
+   * @param {Point} delta
+   *    The vector represents the displacement by which this line segment is
+   *    translated.
+   * @return {Line}
+   *    A new `Line` object representing the result line segment after
+   *    translating this line segment by the specified displacement.
+   */
+  translate(delta) {
+    return new Line(this.start.add(delta), this.end.add(delta));
+  }
+
+  /**
+   * Checks if this directed line segment is equal to another directed line
+   * segment.
+   *
+   * Note that a directed line segment is equal to another directed line segment
+   * if and only if their start points and end points are both equal.
+   *
+   * @param {Line} l
+   *    Another line.
+   * @return {boolean}
+   *    `true` if this directed line segment is equal to the other directed line
+   *    segment, `false` otherwise.
+   */
+  equals(l) {
+    return this.start.equals(l.start) && this.end.equals(l.end);
+  }
+
+  /**
+   * Compares this directed line segment with another directed line segment.
+   *
+   * The function will compare the start points of the two directed line
+   * segments firstly, and the compare the end points of the two directed line
+   * segments.
+   *
+   * @param {Line} l
+   *     Another directed line segment.
+   * @return {number}
+   *     A negative value if this directed line segment is less than the other
+   *     directed line segment, a positive value if this directed line segment
+   *     is greater than the other directed line segment, or zero if this
+   *     directed line segment equals the other directed line segment.
+   */
+  compareTo(l) {
+    let result = this.start.compareTo(l.start);
+    if (result === 0) {
+      result = this.end.compareTo(l.end);
+    }
+    return result;
   }
 
   /**
@@ -142,20 +263,6 @@ class Line {
   }
 
   /**
-   * Calculates the angle between this line and another specified line.
-   *
-   * @param {Line} l
-   *     Another specified line.
-   * @return {number}
-   *     The angle between this line and the other line in radians.
-   */
-  angleWithLine(l) {
-    const u = this.vector();
-    const v = l.vector();
-    return u.angleWith(v);
-  }
-
-  /**
    * Calculates the shortest distance from this line to the specified point.
    *
    * @param {Point} p
@@ -165,26 +272,6 @@ class Line {
    */
   distanceToPoint(p) {
     return p.distanceToLine(this);
-  }
-
-  /**
-   * Calculates the shortest distance from this line to another specified line.
-   *
-   * @param {Line} l
-   *     Another specified line.
-   * @return {number}
-   *     The shortest distance from this line to the other specified line.
-   */
-  distanceToLine(l) {
-    if (this.isIntersectWithLine(l)) {
-      return 0;
-    } else {
-      const d1 = this.start.distanceToLine(l);
-      const d2 = this.end.distanceToLine(l);
-      const d3 = l.start.distanceToLine(this);
-      const d4 = l.end.distanceToLine(this);
-      return Math.min(d1, d2, d3, d4);
-    }
   }
 
   /**

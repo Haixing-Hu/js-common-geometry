@@ -179,7 +179,7 @@ class Triangle {
   /**
    * Rotates this triangle by a given angle around a given point.
    *
-   * @param {Point} p
+   * @param {Point} o
    *     The point around which the rotation is performed.
    * @param {number} angle
    *     The angle of rotation, in radians.
@@ -187,32 +187,27 @@ class Triangle {
    *     A new `Triangle` object representing the result triangle after rotating
    *     this triangle around the given point by the given angle.
    */
-  rotate(p, angle) {
-    const cos = Math.cos(angle);
+  rotate(o, angle) {
     const sin = Math.sin(angle);
-    const dx = p.x * (1 - cos) + p.y * sin;
-    const dy = p.y * (1 - cos) - p.x * sin;
-    const new_a = new Point(this.a.x * cos - this.a.y * sin + dx,
-      this.a.x * sin + this.a.y * cos + dy);
-    const new_b = new Point(this.b.x * cos - this.b.y * sin + dx,
-      this.b.x * sin + this.b.y * cos + dy);
-    const new_c = new Point(this.c.x * cos - this.c.y * sin + dx,
-      this.c.x * sin + this.c.y * cos + dy);
+    const cos = Math.cos(angle);
+    const new_a = this.a.rotateAroundImpl(o, sin, cos);
+    const new_b = this.b.rotateAroundImpl(o, sin, cos);
+    const new_c = this.c.rotateAroundImpl(o, sin, cos);
     return new Triangle(new_a, new_b, new_c);
   }
 
   /**
    * Translate this triangle by the specified displacement.
    *
-   * @param {Point} p
+   * @param {Point} delta
    *    The vector represents the displacement by which this triangle is
    *    translated.
    * @return {Triangle}
    *    A new `Triangle` object representing the result triangle after
    *    translating this triangle by the specified displacement.
    */
-  translate(p) {
-    return new Triangle(this.a.add(p), this.b.add(p), this.c.add(p));
+  translate(delta) {
+    return new Triangle(this.a.add(delta), this.b.add(delta), this.c.add(delta));
   }
 }
 

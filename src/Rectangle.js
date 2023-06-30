@@ -10,7 +10,7 @@ import Config from './Config';
 import Point from './Point';
 import Line from './Line';
 import Polygon from './Polygon';
-import { lt, isZero } from './Utils';
+import { eq, lt, gt, isZero } from './Utils';
 
 /**
  * The class represents a rectangle on the plane.
@@ -20,8 +20,119 @@ import { lt, isZero } from './Utils';
  * @author Haixing Hu
  */
 class Rectangle {
+
+  /**
+   * Tests whether the specified vertexes can form a valid rectangle.
+   *
+   * @param {Point[]} vertexes
+   *    the array of four vertexes to test.
+   * @returns {boolean}
+   *    true if the specified vertexes can form a valid rectangle; false
+   *    otherwise.
+   */
+  static isValid(vertexes) {
+    if (!Array.isArray(vertexes)) {
+      return false;
+    }
+    if (vertexes.length !== 4) {
+      return false;
+    }
+    // the four vertexes form a valid rectangle if and only if the lengths of the
+    // opposite sides are equal, and the lengths of the diagonals are equal.
+    return (!vertexes[0].equals(vertexes[1]))
+      && (!vertexes[1].equals(vertexes[2]))
+      && eq(vertexes[0].distanceTo(vertexes[1]), vertexes[2].distanceTo(vertexes[3]))
+      && eq(vertexes[1].distanceTo(vertexes[2]), vertexes[3].distanceTo(vertexes[0]))
+      && eq(vertexes[0].distanceTo(vertexes[2]), vertexes[1].distanceTo(vertexes[3]));
+  }
+
   /**
    * Constructs a rectangle.
+   *
+   * @param {Point[]} vertexes
+   *     the four vertexes of the new rectangle. The vertexes must be in
+   *     clockwise order or counter-clockwise order, and they must form a valid
+   *     rectangle.
+   * @throws Error
+   *     If the number of vertexes is not 4, or the 4 vertexes cannot form a
+   *     valid rectangle.
+   */
+  constructor(vertexes) {
+    if (!Rectangle.isValid(vertexes)) {
+      throw new Error('The vertexes cannot form a valid rectangle.');
+    }
+    const v = this._makeClockwise(vertexes);
+    const j = this._findTopLeftIndex(v);
+    const tl = v[j];
+    const tr = v[(j + 1) % 4];
+    const br = v[(j + 2) % 4];
+    const bl = v[(j + 3) % 4];
+    this.vertexes = [tl, tr, br, bl];
+    // calculate the corners
+    this.corner = {
+      'top-left': tl,
+      'top-right': tr,
+      'top-center': new Point((tl.x + tr.x) / 2, (tl.y + tr.y) / 2),
+      'bottom-left': bl,
+      'bottom-right': br,
+      'bottom-center': new Point((bl.x + br.x) / 2, (bl.y + br.y) / 2),
+      'middle-left': new Point((tl.x + bl.x) / 2, (tl.y + bl.y) / 2),
+      'middle-right': new Point((tr.x + br.x) / 2, (tr.y + br.y) / 2),
+      'center': new Point((tl.x + br.x) / 2, (tl.y + br.y) / 2),
+    };
+    // calculate the width and height
+    this.width = tl.distanceTo(tr);
+    this.height = tl.distanceTo(bl);
+    // calculate the boundaries
+    const min_x = this.vertexes.reduce((a, p) => Math.min(a, p.x), Number.POSITIVE_INFINITY);
+    const max_x = this.vertexes.reduce((a, p) => Math.max(a, p.x), Number.NEGATIVE_INFINITY);
+    const min_y = this.vertexes.reduce((a, p) => Math.min(a, p.y), Number.POSITIVE_INFINITY);
+    const max_y = this.vertexes.reduce((a, p) => Math.max(a, p.y), Number.NEGATIVE_INFINITY);
+    this.left = min_x;
+    this.right = max_x;
+    if (Config.Y_AXIS_DIRECTION === 'up') {
+      this.top = max_y;
+      this.bottom = min_y;
+    } else {
+      this.top = min_y;
+      this.bottom = max_y;
+    }
+    Object.freeze(this);
+  }
+
+  _makeClockwise(vertexes) {
+    const u = vertexes[0].subtract(vertexes[1]);
+    const v = vertexes[2].subtract(vertexes[1]);
+    if (u.cross(v) > 0) {
+      // the vertexes are in the counter-clockwise order, reverse it.
+      return [vertexes[0], vertexes[3], vertexes[2], vertexes[1]];
+    } else {
+      return vertexes;
+    }
+  }
+
+  _findTopLeftIndex(vertexes) {
+    let j = 0;
+    for (let i = 1; i < 4; ++i) {
+      if (lt(vertexes[i].x, vertexes[j].x)) {
+        j = i;
+      } else if (eq(vertexes[i].x, vertexes[j].x)) {
+        if (Config.Y_AXIS_DIRECTION === 'up') {
+          if (gt(vertexes[i].y, vertexes[j].y)) {
+            j = i;
+          }
+        } else {
+          if (lt(vertexes[i].y, vertexes[j].y)) {
+            j = i;
+          }
+        }
+      }
+    }
+    return j;
+  }
+
+  /**
+   * Creates a rectangle.
    *
    * @param {number} left
    *    the x-coordinate of the left side of the original rectangle.
@@ -53,7 +164,7 @@ class Rectangle {
    *    the translation of the rectangle, which specifies the offset of the
    *    rectangle from the origin.
    */
-  constructor(left, top, width, height, scale = 1, rotation = 0,
+  static create(left, top, width, height, scale = 1, rotation = 0,
     rotationOrigin = 'center', translate = new Point(0, 0)) {
     this._left = left;
     this._top = top;
@@ -80,7 +191,7 @@ class Rectangle {
     const dy = (Config.Y_AXIS_DIRECTION === 'up' ? -this.height : this.height);
     const bl = new Point(this._left, this._top + dy);
     const br = new Point(this._left + this.width, this._top + dy);
-    this._corner = {
+    this.corner = {
       'top-left': tl,
       'top-right': tr,
       'top-center': new Point((tl.x + tr.x) / 2, (tl.y + tr.y) / 2),
@@ -93,78 +204,84 @@ class Rectangle {
     };
     if (this._rotation !== 0) {     // need rotation
       // calculate the actual rotation origin
-      let rotationOrigin = null;
+      let o = null;
       if (this._rotationOrigin instanceof Point) {
-        rotationOrigin = this._rotationOrigin;
+        o = this._rotationOrigin;
       } else if (typeof this._rotationOrigin === 'string') {
-        if (Object.hasOwn(this._corner, this._rotationOrigin)) {
-          rotationOrigin = this._corner[this._rotationOrigin];
+        if (Object.hasOwn(this.corner, this._rotationOrigin)) {
+          o = this.corner[this._rotationOrigin];
         }
       }
-      if (rotationOrigin === null) {
+      if (o === null) {
         throw new Error(`Invalid rotation origin: ${this._rotationOrigin}`);
       }
       // now we will rotate this rectangle around the rotation origin
-      const rotationRadian = (this._rotation * Math.PI) / 180;
-      const cos = Math.cos(rotationRadian);
-      const sin = Math.sin(rotationRadian);
-      const dx = rotationOrigin.x * (1 - cos) + rotationOrigin.y * sin;
-      const dy = rotationOrigin.y * (1 - cos) - rotationOrigin.x * sin;
-      for (const key in this._corner) {
-        if (Object.hasOwn(this._corner, key)) {
-          const p = this._corner[key];
-          this._corner[key] = new Point(p.x * cos - p.y * sin + dx,
-            p.x * sin + p.y * cos + dy);
+      const radian = (this._rotation * Math.PI) / 180;
+      const sin = Math.sin(radian);
+      const cos = Math.cos(radian);
+      for (const key in this.corner) {
+        if (Object.hasOwn(this.corner, key)) {
+          const p = this.corner[key];
+          this.corner[key] = p.rotateAroundImpl(o, sin, cos);
         }
       }
     }
     // translates all the corners
     if (!this._translate.isOrigin()) {
-      for (const key in this._corner) {
-        if (Object.hasOwn(this._corner, key)) {
-          const p = this._corner[key];
-          this._corner[key] = p.add(this._translate);
+      for (const key in this.corner) {
+        if (Object.hasOwn(this.corner, key)) {
+          const p = this.corner[key];
+          this.corner[key] = p.add(this._translate);
         }
       }
     }
     // calculate the left, top, right, bottom boundary
+    this._calculate_boundary();
+  }
+
+  /**
+   * Calculates the left, top, right, bottom boundary of this rectangle.
+   *
+   * @private
+   */
+  _calculate_boundary() {
     this.left = Math.min(
-      this._corner['top-left'].x,
-      this._corner['bottom-left'].x,
-      this._corner['top-right'].x,
-      this._corner['bottom-right'].x,
+      this.corner['top-left'].x,
+      this.corner['bottom-left'].x,
+      this.corner['top-right'].x,
+      this.corner['bottom-right'].x,
     );
     this.right = Math.max(
-      this._corner['top-left'].x,
-      this._corner['bottom-left'].x,
-      this._corner['top-right'].x,
-      this._corner['bottom-right'].x,
+      this.corner['top-left'].x,
+      this.corner['bottom-left'].x,
+      this.corner['top-right'].x,
+      this.corner['bottom-right'].x,
     );
     if (Config.Y_AXIS_DIRECTION === 'up') {
       this.top = Math.max(
-        this._corner['top-left'].y,
-        this._corner['bottom-left'].y,
-        this._corner['top-right'].y,
-        this._corner['bottom-right'].y,
+        this.corner['top-left'].y,
+        this.corner['bottom-left'].y,
+        this.corner['top-right'].y,
+        this.corner['bottom-right'].y,
       );
       this.bottom = Math.min(
-        this._corner['top-left'].y,
-        this._corner['bottom-left'].y,
-        this._corner['top-right'].y,
-        this._corner['bottom-right'].y,
+        this.corner['top-left'].y,
+        this.corner['bottom-left'].y,
+        this.corner['top-right'].y,
+        this.corner['bottom-right'].y,
       );
     } else {
       this.top = Math.min(
-        this._corner['top-left'].y,
-        this._corner['bottom-left'].y,
-        this._corner['top-right'].y,
-        this._corner['bottom-right'].y,
+        this.corner['top-left'].y,
+        this.corner['bottom-left'].y,
+        this.corner['top-right'].y,
+        this.corner['bottom-right'].y,
       );
       this.bottom = Math.max(
-        this._corner['top-left'].y,
-        this._corner['bottom-left'].y,
-        this._corner['top-right'].y,
-        this._corner['bottom-right'].y,
+        this.corner['top-left'].y,
+        this.corner['bottom-left'].y,
+        this.corner['top-right'].y,
+        this.corner['bottom-right'].y,
       );
     }
   }
@@ -176,7 +293,7 @@ class Rectangle {
    *    the top-left point of this rectangle.
    */
   get topLeft() {
-    return this._corner['top-left'];
+    return this.corner['top-left'];
   }
 
   /**
@@ -186,7 +303,7 @@ class Rectangle {
    *     the top-center point of this rectangle.
    */
   get topCenter() {
-    return this._corner['top-center'];
+    return this.corner['top-center'];
   }
 
   /**
@@ -196,7 +313,7 @@ class Rectangle {
    *    the top-right point of this rectangle.
    */
   get topRight() {
-    return this._corner['top-right'];
+    return this.corner['top-right'];
   }
 
   /**
@@ -206,7 +323,7 @@ class Rectangle {
    *     the middle-left point of this rectangle.
    */
   get middleLeft() {
-    return this._corner['middle-left'];
+    return this.corner['middle-left'];
   }
 
   /**
@@ -216,7 +333,7 @@ class Rectangle {
    *     the center point of this rectangle.
    */
   get center() {
-    return this._corner['center'];
+    return this.corner['center'];
   }
 
   /**
@@ -226,7 +343,7 @@ class Rectangle {
    *    the middle-right point of this rectangle.
    */
   get middleRight() {
-    return this._corner['middle-right'];
+    return this.corner['middle-right'];
   }
 
   /**
@@ -236,7 +353,7 @@ class Rectangle {
    *     the bottom-left point of this rectangle.
    */
   get bottomLeft() {
-    return this._corner['bottom-left'];
+    return this.corner['bottom-left'];
   }
 
   /**
@@ -246,7 +363,7 @@ class Rectangle {
    *     the bottom-center point of this rectangle.
    */
   get bottomCenter() {
-    return this._corner['bottom-center'];
+    return this.corner['bottom-center'];
   }
 
   /**
@@ -256,23 +373,23 @@ class Rectangle {
    *    the bottom-right point of this rectangle.
    */
   get bottomRight() {
-    return this._corner['bottom-right'];
+    return this.corner['bottom-right'];
   }
 
-  /**
-   * Get the array of vertexes of this rectangle.
-   *
-   * @return {Point[]}
-   *    the array of vertexes of this rectangle.
-   */
-  vertexes() {
-    return [
-      this._corner['top-left'],
-      this._corner['top-right'],
-      this._corner['bottom-right'],
-      this._corner['bottom-left'],
-    ];
-  }
+  // /**
+  //  * Get the array of vertexes of this rectangle.
+  //  *
+  //  * @return {Point[]}
+  //  *    the array of vertexes of this rectangle.
+  //  */
+  // vertexes() {
+  //   return [
+  //     this.corner['top-left'],
+  //     this.corner['top-right'],
+  //     this.corner['bottom-right'],
+  //     this.corner['bottom-left'],
+  //   ];
+  // }
 
   /**
    * Gets the array of sides of this rectangle.
@@ -282,10 +399,10 @@ class Rectangle {
    */
   sides() {
     return [
-      new Line(this._corner['top-left'], this._corner['top-right']),
-      new Line(this._corner['top-right'], this._corner['bottom-right']),
-      new Line(this._corner['bottom-right'], this._corner['bottom-left']),
-      new Line(this._corner['bottom-left'], this._corner['top-left']),
+      new Line(this.corner['top-left'], this.corner['top-right']),
+      new Line(this.corner['top-right'], this.corner['bottom-right']),
+      new Line(this.corner['bottom-right'], this.corner['bottom-left']),
+      new Line(this.corner['bottom-left'], this.corner['top-left']),
     ];
   }
 
@@ -297,6 +414,40 @@ class Rectangle {
    */
   toPolygon() {
     return new Polygon(this.vertexes());
+  }
+
+  /**
+   * Rotates this rectangle by a given angle around a given point.
+   *
+   * @param {Point} o
+   *     The point around which the rotation is performed.
+   * @param {number} angle
+   *     The angle of rotation, in radians.
+   * @return {Rectangle}
+   *     A new `Rectangle` object representing the result triangle after rotating
+   *     this triangle around the given point by the given angle.
+   */
+  rotate(o, angle) {
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const new_a = this.a.rotateAroundImpl(o, sin, cos);
+    const new_b = this.b.rotateAroundImpl(o, sin, cos);
+    const new_c = this.c.rotateAroundImpl(o, sin, cos);
+
+  }
+
+  /**
+   * Translate this rectangle by the specified displacement.
+   *
+   * @param {Point} delta
+   *    The vector represents the displacement by which this rectangle is
+   *    translated.
+   * @return {Rectangle}
+   *    A new `Rectangle` object representing the result rectangle after
+   *    translating this rectangle by the specified displacement.
+   */
+  translate(delta) {
+    return new Triangle(this.a.add(delta), this.b.add(delta), this.c.add(delta));
   }
 
   /**
@@ -316,8 +467,8 @@ class Rectangle {
    *    - 'bottom-right': the bottom-right corner of the rectangle.
    */
   anchorPoint(anchor) {
-    if (Object.hasOwn(this._corner, anchor)) {
-      return this._corner[anchor];
+    if (Object.hasOwn(this.corner, anchor)) {
+      return this.corner[anchor];
     } else {
       throw new Error(`Unknown anchor point: ${anchor}`);
     }
@@ -330,7 +481,7 @@ class Rectangle {
    *     the left side of this rectangle.
    */
   leftSide() {
-    return new Line(this._corner['top-left'], this._corner['bottom-left']);
+    return new Line(this.corner['top-left'], this.corner['bottom-left']);
   }
 
   /**
@@ -340,7 +491,7 @@ class Rectangle {
    *     the top side of this rectangle.
    */
   topSide() {
-    return new Line(this._corner['top-left'], this._corner['top-right']);
+    return new Line(this.corner['top-left'], this.corner['top-right']);
   }
 
   /**
@@ -350,7 +501,7 @@ class Rectangle {
    *    the right side of this rectangle.
    */
   rightSide() {
-    return new Line(this._corner['top-right'], this._corner['bottom-right']);
+    return new Line(this.corner['top-right'], this.corner['bottom-right']);
   }
 
   /**
@@ -360,7 +511,7 @@ class Rectangle {
    *    the bottom side of this rectangle.
    */
   bottomSide() {
-    return new Line(this._corner['bottom-left'], this._corner['bottom-right']);
+    return new Line(this.corner['bottom-left'], this.corner['bottom-right']);
   }
 
   /**

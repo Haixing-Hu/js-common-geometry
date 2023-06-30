@@ -9,106 +9,137 @@
 import Config from './Config';
 
 /**
- * 判断两个浮点数是否相等。
+ * Determine if two floating-point numbers are equal.
  *
  * @param {number} x
- *     第一个浮点数。
+ *     The first floating-point number.
  * @param {number} y
- *     第二个浮点数。
+ *     The second floating-point number.
  * @returns {boolean}
- *     如果两个浮点数相等，则返回`true`；否则返回`false`。
+ *     Returns `true` if the two floating-point numbers are equal; otherwise,
+ *     returns `false`.
  */
 function eq(x, y) {
   return Math.abs(x - y) <= Config.EPS;
 }
 
 /**
- * 判断一个浮点数是否小于另一个浮点数。
+ * Determine if two floating-point numbers are not equal.
  *
  * @param {number} x
- *     第一个浮点数。
+ *     The first floating-point number.
  * @param {number} y
- *     第二个浮点数。
+ *     The second floating-point number.
  * @returns {boolean}
- *     若第一个浮点数小于第二个浮点数，则返回`true`；否则返回`false`。
+ *     Returns `true` if the two floating-point numbers are not equal; otherwise,
+ *     returns `false`.
+ */
+function neq(x, y) {
+  return Math.abs(x - y) > Config.EPS;
+}
+
+/**
+ * Determine if a floating-point number is less than another floating-point
+ * number.
+ *
+ * @param {number} x
+ *     The first floating-point number.
+ * @param {number} y
+ *     The second floating-point number.
+ * @returns {boolean}
+ *     Returns `true` if the first floating-point number is less than the second
+ *     floating-point number; otherwise, returns `false`.
  */
 function lt(x, y) {
   return x < y + Config.EPS;
 }
 
 /**
- * 判断一个浮点数是否小于或等于另一个浮点数。
+ * Determine if a floating-point number is less than or equal to another
+ * floating-point number.
  *
  * @param {number} x
- *     第一个浮点数。
+ *     The first floating-point number.
  * @param {number} y
- *     第二个浮点数。
+ *     The second floating-point number.
  * @returns {boolean}
- *     若第一个浮点数小于或等于第二个浮点数，则返回`true`；否则返回`false`。
+ *     Returns `true` if the first floating-point number is less than or equal
+ *     to the second floating-point number; otherwise, returns `false`.
  */
 function leq(x, y) {
   return x <= y + Config.EPS;
 }
 
 /**
- * 判断一个浮点数是否大于另一个浮点数。
+ * Determine if a floating-point number is greater than another floating-point
+ * number.
  *
  * @param {number} x
- *     第一个浮点数。
+ *     The first floating-point number.
  * @param {number} y
- *     第二个浮点数。
+ *     The second floating-point number.
  * @returns {boolean}
- *     若第一个浮点数大于第二个浮点数，则返回`true`；否则返回`false`。
+ *     Returns `true` if the first floating-point number is greater than the
+ *     second floating-point number; otherwise, returns `false`.
  */
 function gt(x, y) {
   return x + Config.EPS > y;
 }
 
 /**
- * 判断一个浮点数是否大于或等于另一个浮点数。
+ * Determine if a floating-point number is greater than or equal to another
+ * floating-point number.
  *
  * @param {number} x
- *     第一个浮点数。
+ *     The first floating-point number.
  * @param {number} y
- *     第二个浮点数。
+ *     The second floating-point number.
  * @returns {boolean}
- *     若第一个浮点数大于或等于第二个浮点数，则返回`true`；否则返回`false`。
+ *     Returns `true` if the first floating-point number is greater than or
+ *     equal to the second floating-point number; otherwise, returns `false`.
  */
 function geq(x, y) {
   return x + Config.EPS >= y;
 }
 
 /**
- * 判定一个浮点数的绝对值是否足够小以至于可以被认为是0.
+ * Determine if the absolute value of a floating-point number is small enough
+ * to be considered as zero.
  *
  * @param {number} x
- *     待判定的浮点数。
+ *     The floating-point number to be determined.
  * @returns {boolean}
- *     若浮点数的绝对值是否足够小以至于可以被认为是0，则返回`true`；否则返回`false`。
+ *     Returns `true` if the absolute value of the floating-point number is
+ *     small enough to be considered as zero; otherwise, returns `false`.
  */
 function isZero(x) {
   return Math.abs(x) <= Config.EPS;
 }
 
 /**
- * 判定一个浮点数的绝对值是否足够大以至于可以被认为是非0.
+ * Determine if the absolute value of a floating-point number is large enough
+ * to be considered as non-zero.
  *
  * @param {number} x
- *     待判定的浮点数。
+ *     The floating-point number to be determined.
  * @returns {boolean}
- *     若浮点数的绝对值是否足够大以至于可以被认为是非0，则返回`true`；否则返回`false`。
+ *     Returns `true` if the absolute value of the floating-point number is
+ *     large enough to be considered as non-zero; otherwise, returns `false`.
  */
 function isNonZero(x) {
   return Math.abs(x) > Config.EPS;
 }
 
 /**
- * 判定一个浮点数的值足够小以至于可以被认为小于等于0.
+ * Determine if the value of a floating-point number is small enough to be
+ * considered as less than or equal to zero.
  *
  * @param {number} x
- *     待判定的浮点数。
+ *     The floating-point number to be determined.
  * @returns {boolean}
- *     若浮点数的值足够小以至于可以被认为小于等于0, i.e., `x <= 0`; 则返回`true`；否则返回`false`。
+ *     Returns `true` if the value of the floating-point number is small enough
+ *     to be considered as less than or equal to zero (i.e., `x <= 0`);
+ *     otherwise, returns `false`.
  */
 function isNonPositive(x) {
   return x <= Config.EPS;
@@ -116,6 +147,7 @@ function isNonPositive(x) {
 
 export {
   eq,
+  neq,
   lt,
   leq,
   gt,
