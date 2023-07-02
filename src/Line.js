@@ -6,7 +6,7 @@
  *    All rights reserved.                                                    *
  *                                                                            *
  ******************************************************************************/
-import { eq, geq, isNonZero, isNonPositive } from './Utils';
+import { eq, geq, isNonZero, isNonPositive, isZero, sign } from './Utils';
 import Point from './Point';
 
 /**
@@ -91,7 +91,7 @@ class Line {
    *     The shortest distance from this line to the other specified line.
    */
   distanceTo(l) {
-    if (this.isIntersectWithLine(l)) {
+    if (this.intersectsWithLine(l)) {
       return 0;
     } else {
       const d1 = this.start.distanceTo(l);
@@ -149,6 +149,20 @@ class Line {
   }
 
   /**
+   * Tests whether this line segment contains the specified point.
+   *
+   * @param {Point} p
+   *    the specified point.
+   * @return {boolean}
+   *    `true` if this line segment contains the specified point, `false`
+   *    otherwise.
+   * @see Point.isOnLineSegment()
+   */
+  containsPoint(p) {
+    return p.isOnLineSegment(this);
+  }
+
+  /**
    * Checks if this directed line segment is equal to another directed line
    * segment.
    *
@@ -169,7 +183,7 @@ class Line {
    * Compares this directed line segment with another directed line segment.
    *
    * The function will compare the start points of the two directed line
-   * segments firstly, and the compare the end points of the two directed line
+   * segments firstly, and then compare the end points of the two directed line
    * segments.
    *
    * @param {Line} l
@@ -195,12 +209,35 @@ class Line {
    *     The specified line.
    * @return {boolean}
    *     Returns `true` if this line intersects with the specified line;
-   *     otherwise, returns `false`.
+   *     otherwise, returns `false`. Note that is two line segments are on the
+   *     same line, this function considers them as parallel and returns
+   *     `false`.
    */
-  isIntersectWithLine(other) {
+  intersectsWithLine(other) {
     const r = (this.start.x - this.end.x) * (other.start.y - other.end.y)
             - (this.start.y - this.end.y) * (other.start.x - other.end.x);
     return isNonZero(r);
+  }
+
+
+  /**
+   * Determines if this line intersects or coline with another specified line.
+   *
+   * @param {Line} other
+   *     The specified line.
+   * @return {boolean}
+   *     Returns `true` if this line intersects or coline with the specified line;
+   *     otherwise, returns `false`. Note that is two line segments are on the
+   *     same line, this function returns `true`.
+   */
+  intersectsOrColineWithLine(other) {
+    const r = (this.start.x - this.end.x) * (other.start.y - other.end.y)
+      - (this.start.y - this.end.y) * (other.start.x - other.end.x);
+    if (isZero(r)) {  // the two lines are parallel or coline
+      return this.start.isOnLine(other);
+    } else {          // the two lines are not parallel
+      return true;
+    }
   }
 
   /**
@@ -213,7 +250,7 @@ class Line {
    *     Returns `true` if this line segment intersects with the specified line
    *     segment; otherwise, returns `false`.
    */
-  isIntersectWithLineSegment(other) {
+  intersectsWithLineSegment(other) {
     const thisMaxX = Math.max(this.start.x, this.end.x);
     const thisMinX = Math.min(this.start.x, this.end.x);
     const thisMaxY = Math.max(this.start.y, this.end.y);
@@ -300,7 +337,7 @@ class Line {
         pts.push(side.start);
       } else if (side.end.isOnLineSegment(this)) {
         pts.push(side.end);
-      } else if (this.isIntersectWithLineSegment(side)) {
+      } else if (this.intersectsWithLineSegment(side)) {
         return false;
       }
     }

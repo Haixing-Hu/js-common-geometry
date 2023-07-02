@@ -8,6 +8,7 @@
  ******************************************************************************/
 import Point from './Point';
 import Line from './Line';
+import { calculateBoundaries, isZero, normalize, modulo } from './Utils';
 
 /**
  * This class represents a polygon in a plane.
@@ -18,19 +19,106 @@ import Line from './Line';
  */
 class Polygon {
   /**
-   * Constructs a polygon.
+   * Tests whether the specified vertexes can form a valid polygon.
    *
    * @param {Point[]} vertexes
-   *     the array of vertexes of the polygon, which must have at least 3 points.
+   *    the array of vertexes to test.
+   * @returns {boolean}
+   *    `true` if the specified vertexes can form a valid polygon; `false`
+   *    otherwise.
+   */
+  static isValid(vertexes) {
+    if (!Array.isArray(vertexes)) {
+      return false;
+    }
+    if (vertexes.length < 3) {
+      return false;
+    }
+    const n = vertexes.length;
+    for (let i = 1; i < n; ++i) {
+      const v0 = vertexes[i - 1];
+      const v1 = vertexes[i];
+      const v2 = vertexes[(i + 1) % n];
+      if (isZero(v1.times(v0, v2))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Constructs a polygon.
+   *
+   * The constructor must be provided with vertexes of a polygon. The vertexes
+   * could be in clockwise order or counter-clockwise order, but they must form
+   * a valid polygon, i.e., they should have at least 3 vertexes and no three
+   * consecutive vertexes should be in the same line.
+   *
+   * The constructor will normalize the vertexes, that is, it will reorder the
+   * vertexes in the clockwise order, and select the top-left vertex as the
+   * first vertex.
+   *
+   * The top-left vertex is the vertex with the largest or smallest y-coordinate
+   * (depending on the direction of the y-axis, i.e.,
+   * `Config.Y_AXIS_DIRECTION === 'up'` or `Config.Y_AXIS_DIRECTION === 'down'`),
+   * and among all the vertexes with the same y-coordinate, the one with the
+   * smallest x-coordinate.
+   *
+   * @param {Point[]} vertexes
+   *     the array of vertexes of the polygon, which must have at least 3
+   *     points and no 3 consecutive points should be in the same line.
+   * @param {boolean} normalized
+   *     Indicates whether the specified vertexes are normalized. If the
+   *     specified vertexes are normalized, they will be copied to the new
+   *     polygon; otherwise, they will be normalized and then copied to the
+   *     new polygon. The default value of this argument is `false`.
    * @throws {Error}
    *     if the array of vertexes has less than 3 points.
    */
-  constructor(vertexes) {
-    if (vertexes.length < 3) {
-      throw new Error('This polygon has less than 3 vertexes.');
+  constructor(vertexes, normalized = false) {
+    if (normalized) {
+      this.vertexes = vertexes.slice();
+    } else {
+      if (!Polygon.isValid(vertexes)) {
+        throw new Error('The vertexes cannot form a valid polygon.');
+      }
+      this.vertexes = normalize(vertexes);
     }
-    this.vertexes = vertexes;
+    // calculate the boundaries
+    const boundary = calculateBoundaries(this.vertexes);
+    this.left = boundary.left;
+    this.right = boundary.right;
+    this.top = boundary.top;
+    this.bottom = boundary.bottom;
     Object.freeze(this);        //  make this object immutable
+  }
+
+  /**
+   * Gets the array of sides of this polygon.
+   *
+   * @return {Line[]}
+   *    the array of sides of this polygon.
+   */
+  sides() {
+    const n = this.vertexes.length;
+    return this.vertexes.map((p, i) => new Line(p, this.vertexes[(i + 1) % n]));
+  }
+
+  /**
+   * Gets the array of angles of this polygon.
+   *
+   * @return {number[]}
+   *    the array of angles of this polygon, in radians.
+   */
+  angles() {
+    const n = this.vertexes.length;
+    return this.vertexes.map((p, i) => {
+      const p0 = this.vertexes[(i + n - 1) % n];
+      const p1 = this.vertexes[(i + 1) % n];
+      const u = p0.subtract(p);
+      const v = p1.subtract(p);
+      return u.angleWith(v);
+    });
   }
 
   /**
@@ -45,7 +133,7 @@ class Polygon {
    */
   vertex(i) {
     const n = this.vertexes.length;
-    return this.vertexes[i % n];
+    return this.vertexes[modulo(i, n)];
   }
 
   /**
@@ -60,9 +148,29 @@ class Polygon {
    */
   side(i) {
     const n = this.vertexes.length;
-    const u = this.vertexes[i % n];
-    const v = this.vertexes[(i + 1) % n];
+    const u = this.vertexes[modulo(i, n)];
+    const v = this.vertexes[modulo(i + 1, n)];
     return new Line(u, v);
+  }
+
+  /**
+   * Gets the specified angle of this polygon.
+   *
+   * @param {number} i
+   *     the index of the specified side to get. If this index is larger
+   *     than or equal to the number of sides of this polygon, it will be
+   *     treated as module the number of sides.
+   * @return {number}
+   *     the specified angle of this polygon, in radians.
+   */
+  angle(i) {
+    const n = this.vertexes.length;
+    const p0 = this.vertexes[modulo(i - 1, n)];
+    const p = this.vertexes[modulo(i, n)];
+    const p1 = this.vertexes[modulo(i + 1, n)];
+    const u = p0.subtract(p);
+    const v = p1.subtract(p);
+    return u.angleWith(v);
   }
 
   /**
@@ -78,21 +186,33 @@ class Polygon {
     }
     let result = 0;
     for (let i = 0; i < n; ++i) {
-      result += this.vertexes[i].x * this.vertexes[(i + 1) % n].y;
-      result -= this.vertexes[i].y * this.vertexes[(i + 1) % n].x;
+      const p = this.vertexes[i];
+      const q = this.vertexes[(i + 1) % n];
+      result += p.x * q.y;
+      result -= p.y * q.x;
     }
     return Math.abs(result / 2.0);
   }
 
   /**
-   * Calculate the centroid of this polygon, applicable to any simple polygon.
+   * Calculate the center or centroid of this polygon, applicable to any simple
+   * polygon.
    *
-   * The number of vertices of this polygon must be greater than 0.
+   * The center of a polygon is the arithmetic mean ("average") of all points of
+   * the polygon. It is the point at which a cutout of the shape could be
+   * perfectly balanced on the tip of a pin.
+   *
+   * The centroid of a polygon is the intersection of all straight lines that
+   * evenly divide the polygon into two parts of equal moment about the line.
+   * The centroid of a convex polygon is inside the polygon. The centroid of a
+   * non-convex polygon can be outside the polygon.
+   *
+   * The center and centroid of an object with uniform density are equal.
    *
    * @return {Point}
-   *     the centroid of this polygon.
+   *     the center/centroid of this polygon.
    */
-  centroid() {
+  center() {
     const n = this.vertexes.length;
     if (n === 0) {
       throw new Error('This polygon has no vertex.');
@@ -168,6 +288,51 @@ class Polygon {
    */
   translate(delta) {
     return new Polygon(this.vertexes.map((v) => v.add(delta)));
+  }
+
+  /**
+   * Checks if this polygon is equal to another polygon.
+   *
+   * Note that a polygon is equal to another polygon if and only if all their
+   * vertexes are equal.
+   *
+   * @param {Polygon} other
+   *    Another polygon.
+   * @return {boolean}
+   *    `true` if this polygon is equal to the other polygon, `false` otherwise.
+   */
+  equals(other) {
+    const n = this.vertexes.length;
+    for (let i = 0; i < n; ++i) {
+      if (!this.vertexes[i].equals(other.vertexes[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Compares this polygon with another polygon
+   *
+   * The function will compare the vertexes of two polygons in the clockwise
+   * order.
+   *
+   * @param {Polygon} t
+   *     Another polygon.
+   * @return {number}
+   *     A negative value if this polygon is less than the other polygon, a
+   *     positive value if this polygon is greater than the other polygon, or
+   *     zero if this polygon equals the other polygon.
+   */
+  compareTo(t) {
+    const n = this.vertexes.length;
+    for (let i = 0; i < n; ++i) {
+      const result = this.vertexes[i].compareTo(t.vertexes[i]);
+      if (result !== 0) {
+        return result;
+      }
+    }
+    return 0;
   }
 }
 

@@ -7,7 +7,7 @@
  *                                                                            *
  ******************************************************************************/
 import Config from './Config';
-import { eq, geq, leq, isNonPositive, isZero } from './Utils';
+import { eq, geq, leq, isNonPositive, isZero, sign, isNonNegative } from './Utils';
 
 /**
  * This class represents a point or a vector in a plane.
@@ -260,8 +260,9 @@ class Point {
    *    `true` if this point lies on the specified line, `false` otherwise.
    */
   isOnLine(l) {
-    const r = (l.end.x - l.start.x) * (this.y - l.start.y)
-            - (l.end.y - l.start.y) * (this.x - l.start.x);
+    const u = l.end.subtract(l.start);
+    const v = this.subtract(l.start);
+    const r = u.cross(v);
     return isZero(r);
   }
 
@@ -274,11 +275,13 @@ class Point {
    *    `true` if this point lies on the specified line segment, `false` otherwise.
    */
   isOnLineSegment(l) {
-    const r = (l.end.x - l.start.x) * (this.y - l.start.y)
-            - (l.end.y - l.start.y) * (this.x - l.start.x);
+    const u = l.end.subtract(l.start);
+    const v = this.subtract(l.start);
+    const w = this.subtract(l.end);
+    const r = u.cross(v);
     return isZero(r)
-        && isNonPositive((this.x - l.start.x) * (this.x - l.end.x))
-        && isNonPositive((this.y - l.start.y) * (this.y - l.end.y));
+        && (sign(v.x) * sign(w.x) <= 0)
+        && (sign(v.y) * sign(w.y) <= 0);
   }
 
   /**
@@ -294,12 +297,13 @@ class Point {
    *     - 'right': indicates that this point is on the right side of the specified line.
    */
   relationToLine(l) {
-    const r = (l.end.x - l.start.x) * (this.y - l.start.y)
-            - (l.end.y - l.start.y) * (this.x - l.start.x);
+    const u = l.end.subtract(l.start);
+    const v = this.subtract(l.start);
+    const r = u.cross(v);
     if (isZero(r)) {
       return 'on';
     } else {
-      return r > 0 ? 'left' : 'right';
+      return (r > 0 ? 'left' : 'right');
     }
   }
 
@@ -393,15 +397,30 @@ class Point {
   }
 
   /**
-   * Tests whether this point is inside a specified rectangle.
+   * Tests whether this point is exactly inside a specified rectangle.
    *
    * @param {Rectangle} rectangle
    *    The specified rectangle.
    * @return {boolean}
-   *    `true` if this point is inside the specified rectangle, `false` otherwise.
+   *    `true` if this point is exactly inside the specified rectangle, `false`
+   *    otherwise. Note that if this point lies exactly on a side of the specified
+   *    rectangle, this function will return `false`.
    */
   isInsideRectangle(rectangle) {
     return (this.relationToRectangle(rectangle) === 'inside');
+  }
+
+  /**
+   * Tests whether this point is on the side of a specified rectangle.
+   *
+   * @param {Rectangle} rectangle
+   *    The specified rectangle.
+   * @return {boolean}
+   *    `true` if this point is on the side of the specified rectangle, `false`
+   *    otherwise.
+   */
+  isOnRectangle(rectangle) {
+    return (this.relationToRectangle(rectangle) === 'on');
   }
 
   /**
@@ -418,7 +437,7 @@ class Point {
    *      specified rectangle.
    */
   relationToRectangle(rectangle) {
-    if (rectangle.isParallelToAxes()) {
+    if (rectangle.isParallelToAxis()) {
       if (geq(this.x, rectangle.left)
           && leq(this.x, rectangle.right)
           && geq(this.y, Math.min(rectangle.bottom, rectangle.top))
@@ -437,9 +456,21 @@ class Point {
     } else {
       const sides = rectangle.sides();
       for (let i = 0; i < 4; ++i) {
-        if (this.isOnLineSegment(sides[i])) {
-          return 'on';
-        } else if (this.relationToLine(sides[i]) !== 'right') {
+        const s = sides[i];
+        const u = s.end.subtract(s.start);
+        const v = this.subtract(s.start);
+        const w = this.subtract(s.end);
+        const r = u.cross(v);
+        if (isZero(r)) {
+          if ((sign(v.x) * sign(w.x) <= 0) && (sign(v.y) * sign(w.y) <= 0)) {
+            // this point is on the side "s" of the rectangle
+            return 'on';
+          } else {
+            // this point is on the same line of "s" but not inside "s"
+            return 'outside';
+          }
+        } else if (r > 0) {
+          // this point is on the left side of "s"
           return 'outside';
         }
       }
@@ -551,7 +582,7 @@ class Point {
         if (side.end.y > side.start.y) {
           ++c;
         }
-      } else if (side.isIntersectWithLineSegment(ray)) {
+      } else if (side.intersectsWithLineSegment(ray)) {
         ++c;
       }
     }
