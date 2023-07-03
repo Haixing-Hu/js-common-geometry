@@ -10,38 +10,33 @@ import { eq, geq, isNonZero, isNonPositive, isZero, sign } from './Utils';
 import Point from './Point';
 
 /**
- * This class represents a line or a line segment in a plane.
+ * This class represents a line in a plane.
+ *
+ * A line has no ending points and has infinity length. But in order to specify
+ * the direction of a line, we use a starting point and and a ending point to
+ * define a infinity line.
  *
  * This class is immutable.
  *
+ * @see LineSegment
  * @author Haixing Hu
  */
 class Line {
+  /**
+   * Constructs a line with infinite length.
+   *
+   * @param {Point} start
+   *    the first point used to define the line.
+   * @param {Point} end
+   *    the second point used to define the line.
+   */
   constructor(start, end) {
+    if (start.equals(end)) {
+      throw new Error('The two points defining a line cannot be same.');
+    }
     this.start = start;
     this.end = end;
     Object.freeze(this);    // make this object immutable
-  }
-
-  /**
-   * Calculates the vector from the start point to the end point of this line s
-   * egment.
-   *
-   * @return {Point}
-   *     The vector from the start point to the end point of this line segment.
-   */
-  vector() {
-    return this.end.subtract(this.start);
-  }
-
-  /**
-   * Calculates the length of this line segment.
-   *
-   * @returns {number}
-   *     The length of this line segment.
-   */
-  length() {
-    return this.start.distanceTo(this.end);
   }
 
   /**
@@ -55,76 +50,93 @@ class Line {
   }
 
   /**
-   * Calculates the center point of this line segment.
+   * Calculates the angle between this line and another line.
    *
-   * @return {Point}
-   *     The center point of this line segment.
-   */
-  center() {
-    return new Point(
-      (this.start.x + this.end.x) / 2,
-      (this.start.y + this.end.y) / 2,
-    );
-  }
-
-
-  /**
-   * Calculates the angle between this line and another specified line.
-   *
-   * @param {Line} l
-   *     Another specified line.
+   * @param {Line} other
+   *     Another line.
    * @return {number}
-   *     The angle between this line and the other line in radians.
+   *     The angle between this line and the other line, in radians.
    */
-  angleWith(l) {
-    const u = this.vector();
-    const v = l.vector();
+  angleWith(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
     return u.angleWith(v);
   }
 
   /**
-   * Calculates the shortest distance from this line to another specified line.
+   * Calculates the angle between this line and another line segment.
    *
-   * @param {Line} l
-   *     Another specified line.
+   * @param {LineSegment} l
+   *     Another line segment.
    * @return {number}
-   *     The shortest distance from this line to the other specified line.
+   *     The angle between this line and the other line segment, in radians.
    */
-  distanceTo(l) {
-    if (this.intersectsWithLine(l)) {
-      return 0;
+  angleWithLineSegment(l) {
+    const u = this.end.subtract(this.start);
+    const v = l.end.subtract(l.start);
+    return u.angleWith(v);
+  }
+
+  /**
+   * Calculates the shortest distance from this line to another line.
+   *
+   * If the two lines are parallel or collinear, the shortest distance between
+   * two lines are 0. Otherwise, the shortest distance between two lines is the
+   * length of the perpendicular line segment between the two lines.
+   *
+   * @param {Line} other
+   *     Another line.
+   * @return {number}
+   *     The shortest distance from this line to the other line.
+   */
+  distanceTo(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    const r = u.cross(v);
+    if (isZero(r)) {   // the two lines are parallel or collinear
+      return this.start.distanceToLine(other);
     } else {
-      const d1 = this.start.distanceTo(l);
-      const d2 = this.end.distanceTo(l);
-      const d3 = l.start.distanceTo(this);
-      const d4 = l.end.distanceTo(this);
-      return Math.min(d1, d2, d3, d4);
+      return 0;         // the two lines are intersect
     }
   }
 
   /**
-   * Rotates this line segment around its start point by a specified angle.
+   * Calculates the shortest distance from this line to the specified line segment.
    *
-   * @param {number} angle
-   *     The angle of rotation in radians.
-   * @return {Line}
-   *     A new `Line` object representing the line segment rotated from this
-   *     line segment.
+   * If the two lines are parallel or collinear, the shortest distance between
+   * two lines are 0. Otherwise, the shortest distance between two lines is the
+   * length of the perpendicular line segment between the two lines.
+   *
+   * @param {LineSegment} l
+   *     The specified line segment.
+   * @return {number}
+   *     The shortest distance from this line to the specified line segment.
    */
-  rotate(angle) {
-    const sin = Math.sin(angle);
-    const cos = Math.cos(angle);
-    const newEnd = this.end.rotateAroundImpl(this.start, sin, cos);
-    return new Line(this.start, newEnd);
+  distanceToLineSegment(l) {
+    return l.distanceToLine(this);
   }
 
   /**
-   * Rotates this line segment around a specified point by a specified angle.
+   * Calculates the shortest distance from this line to the specified point.
+   *
+   * @param {Point} p
+   *     The specified point.
+   * @return {number}
+   *     The shortest distance from this line to the specified point.
+   */
+  distanceToPoint(p) {
+    return p.distanceToLine(this);
+  }
+
+  /**
+   * Rotates this line around a specified point by a specified angle.
    *
    * @param {Point} o
    *    The specified point.
    * @param {number} angle
    *    The angle of rotation in radians.
+   * @return {Line}
+   *    A new `Line` object representing the line rotated from this line.
    */
   rotateAround(o, angle) {
     const sin = Math.sin(angle);
@@ -135,90 +147,150 @@ class Line {
   }
 
   /**
-   * Translate this line segment by the specified displacement.
+   * Translate this line by the specified displacement.
    *
    * @param {Point} delta
-   *    The vector represents the displacement by which this line segment is
-   *    translated.
+   *    The vector represents the displacement by which this line is translated.
    * @return {Line}
-   *    A new `Line` object representing the result line segment after
-   *    translating this line segment by the specified displacement.
+   *    A new `Line` object representing the result line after translating this
+   *    line by the specified displacement.
    */
   translate(delta) {
     return new Line(this.start.add(delta), this.end.add(delta));
   }
 
   /**
-   * Tests whether this line segment contains the specified point.
+   * Tests whether this line contains the specified point.
    *
    * @param {Point} p
    *    the specified point.
    * @return {boolean}
-   *    `true` if this line segment contains the specified point, `false`
-   *    otherwise.
-   * @see Point.isOnLineSegment()
+   *    `true` if this line contains the specified point, `false` otherwise.
+   * @see Point.isOnLine()
    */
   containsPoint(p) {
-    return p.isOnLineSegment(this);
+    return p.isOnLine(this);
   }
 
   /**
-   * Checks if this directed line segment is equal to another directed line
-   * segment.
+   * Checks if this line is equal to another line.
    *
-   * Note that a directed line segment is equal to another directed line segment
-   * if and only if their start points and end points are both equal.
-   *
-   * @param {Line} l
-   *    Another line.
-   * @return {boolean}
-   *    `true` if this directed line segment is equal to the other directed line
-   *    segment, `false` otherwise.
-   */
-  equals(l) {
-    return this.start.equals(l.start) && this.end.equals(l.end);
-  }
-
-  /**
-   * Compares this directed line segment with another directed line segment.
-   *
-   * The function will compare the start points of the two directed line
-   * segments firstly, and then compare the end points of the two directed line
-   * segments.
-   *
-   * @param {Line} l
-   *     Another directed line segment.
-   * @return {number}
-   *     A negative value if this directed line segment is less than the other
-   *     directed line segment, a positive value if this directed line segment
-   *     is greater than the other directed line segment, or zero if this
-   *     directed line segment equals the other directed line segment.
-   */
-  compareTo(l) {
-    let result = this.start.compareTo(l.start);
-    if (result === 0) {
-      result = this.end.compareTo(l.end);
-    }
-    return result;
-  }
-
-  /**
-   * Determines if this line intersects with another specified line.
+   * Note that a line is equal to another line if and only if they are collinear.
    *
    * @param {Line} other
-   *     The specified line.
+   *    Another line.
    * @return {boolean}
-   *     Returns `true` if this line intersects with the specified line;
-   *     otherwise, returns `false`. Note that is two line segments are on the
-   *     same line, this function considers them as parallel and returns
-   *     `false`.
+   *    `true` if this line is equal to the other line, `false` otherwise.
    */
-  intersectsWithLine(other) {
-    const r = (this.start.x - this.end.x) * (other.start.y - other.end.y)
-            - (this.start.y - this.end.y) * (other.start.x - other.end.x);
-    return isNonZero(r);
+  equals(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    if (isZero(u.cross(v))) {  // this line is parallel or collinear with other line
+      const w = this.start.subtract(other.start);
+      return isZero(w.cross(v));
+    } else {
+      return false;
+    }
   }
 
+  /**
+   * Compares this line with another line.
+   *
+   * This function first compares the angles between two lines and the x-axis,
+   * considering the line with a smaller angle as the smaller line. Then it
+   * compares the intercepts of the two lines on the x-axis, considering the
+   * line with a smaller x-axis intercept as the smaller line. If both lines
+   * are parallel to the x-axis, it compares the intercepts of the two lines
+   * on the y-axis, considering the line with a larger y-axis intercept as
+   * the smaller line.
+   *
+   * @param {Line} other
+   *     Another line.
+   * @return {number}
+   *     A negative value if this line is considered as less than the other line;
+   *     a positive value if this line is considered as greater than the other
+   *     line; or zero if this line is considered as equal to the other line.
+   */
+  compareTo(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    const r = v.cross(u); // from v to u
+    if (isZero(r)) {      // this line is parallel or collinear with other line
+      const w = this.start.subtract(other.start);
+      return sign(w.cross(v));  // the one on the left is considered as smaller
+    } else {
+      return sign(r);     // the one with smaller angle is considered as smaller
+    }
+  }
+
+  /**
+   * Calculates the relationship between this line and another line.
+   *
+   * @param {Line} other
+   *     Another line.
+   * @return {string}
+   *     The relationship of this line with the other line, which may have the
+   *     following values:
+   *     - `'equal'`: indicates this line equals the other line, i.e., they are
+   *       collinear;
+   *     - `'parallel'`: indicates this line is parallel with the other line;
+   *     - `'intersect'`: indicates this line intersects with the other line.
+   * @see equals
+   * @see parallelWith
+   * @see intersectsWith
+   */
+  relationTo(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    if (isZero(u.cross(v))) {      // this line is parallel or collinear with other line
+      const w = this.start.subtract(other.start);
+      if (isZero(w.cross(v))) {
+        return 'equal';
+      } else {
+        return 'parallel';
+      }
+    } else {
+      return 'intersect';
+    }
+  }
+
+  /**
+   * Tests whether this line is parallel with another line.
+   *
+   * @param {Line} other
+   *    Another line.
+   * @returns {boolean}
+   *    `true` if this line is parallel with the other line; `false` otherwise.
+   *     Note that is two lines are collinear, this function considers them as
+   *     parallel and returns `true`.
+   * @see equals
+   * @see relationTo
+   * @see intersectsWith
+   */
+  parallelWith(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    return isZero(u.cross(v));
+  }
+
+  /**
+   * Determines if this line intersects with another line.
+   *
+   * @param {Line} other
+   *     Another line.
+   * @return {boolean}
+   *     Returns `true` if this line intersects with the other line; otherwise,
+   *     returns `false`. Note that is two lines are collinear, this function
+   *     considers them as parallel and returns `false`.
+   * @see equals
+   * @see relationTo
+   * @see parallelWith
+   */
+  intersectsWith(other) {
+    const u = this.end.subtract(this.start);
+    const v = other.end.subtract(other.start);
+    return isNonZero(u.cross(v));
+  }
 
   /**
    * Determines if this line intersects or coline with another specified line.
@@ -297,18 +369,6 @@ class Line {
       const y = (a2 * c1 - a1 * c2) / (a1 * b2 - a2 * b1);
       return new Point(x, y);
     }
-  }
-
-  /**
-   * Calculates the shortest distance from this line to the specified point.
-   *
-   * @param {Point} p
-   *     The specified point.
-   * @return {number}
-   *     The shortest distance from this line to the specified point.
-   */
-  distanceToPoint(p) {
-    return p.distanceToLine(this);
   }
 
   /**

@@ -244,11 +244,73 @@ class Point {
    *    Another point.
    * @return {number}
    *    The Euclidean distance between this point and another point.
+   * @see distanceToLine
+   * @see distanceToLineSegment
    */
   distanceTo(other) {
     const a = this.x - other.x;
     const b = this.y - other.y;
     return Math.sqrt(a * a + b * b);
+  }
+
+  /**
+   * Computes the distance between this point and a specified line.
+   *
+   * @param {Line} l
+   *     The specified line.
+   * @returns {number}
+   *     The distance between this point and the specified line.
+   * @see distanceTo
+   * @see distanceToLineSegment
+   */
+  distanceToLine(l) {
+    const a_x = this.x - l.start.x;
+    const a_y = this.y - l.start.y;
+    const b_x = l.end.x - l.start.x;
+    const b_y = l.end.y - l.start.y;
+    return Math.abs(a_x * b_y - a_y * b_x) / Math.sqrt(b_x * b_x + b_y * b_y);
+  }
+
+  /**
+   * Computes the distance between this point and a specified line segment.
+   *
+   * @param {LineSegment} l
+   *     The specified line segment.
+   * @returns {number}
+   *     The distance between this point and the specified line segment.
+   * @see distanceTo
+   * @see distanceToLine
+   */
+  distanceToLineSegment(l) {
+    const u = l.end.subtract(l.start);
+    const v = this.subtract(l.start);
+    const r = u.dot(v);
+    if (r <= 0) {       // the projection of p is on the backward extension of l
+      return this.distanceTo(l.start);
+    }
+    const w = u.dot(u);
+    if (geq(r, w)) {    // the projection of p is on the forward extension of l
+      return this.distanceTo(l.end);
+    } else {            // the projection of p is between the line segment endpoints
+      return Math.abs(u.cross(v)) / Math.sqrt(w);
+    }
+  }
+
+  /**
+   * Computes the nearest point on a specified line from this point, which is
+   * the perpendicular projection of this point onto the specified line.
+   *
+   * @param {Line} l
+   *     The specified line.
+   * @return {Point}
+   *     The nearest point on the specified line from this point, which is the
+   *     perpendicular projection of this point onto the specified line.
+   */
+  nearestPointToLine(l) {
+    const a = l.end.x - l.start.x;
+    const b = l.end.y - l.start.y;
+    const t = (a * (this.x - l.start.x) + b * (this.y - l.start.y)) / (a * a + b * b);
+    return new Point(l.start.x + a * t, l.start.y + b * t);
   }
 
   /**
@@ -322,39 +384,6 @@ class Point {
     const x = 2 * l.start.x + 2 * a * t - this.x;
     const y = 2 * l.start.y + 2 * b * t - this.y;
     return new Point(x, y);
-  }
-
-  /**
-   * Computes the distance between this point and a specified line.
-   *
-   * @param {Line} l
-   *     The specified line.
-   * @returns {number}
-   *     The distance between this point and the specified line.
-   */
-  distanceToLine(l) {
-    const a_x = this.x - l.start.x;
-    const a_y = this.y - l.start.y;
-    const b_x = l.end.x - l.start.x;
-    const b_y = l.end.y - l.start.y;
-    return Math.abs(a_x * b_y - a_y * b_x) / Math.sqrt(b_x * b_x + b_y * b_y);
-  }
-
-  /**
-   * Computes the nearest point on a specified line from this point, which is
-   * the perpendicular projection of this point onto the specified line.
-   *
-   * @param {Line} l
-   *     The specified line.
-   * @return {Point}
-   *     The nearest point on the specified line from this point, which is the
-   *     perpendicular projection of this point onto the specified line.
-   */
-  nearestPointToLine(l) {
-    const a = l.end.x - l.start.x;
-    const b = l.end.y - l.start.y;
-    const t = (a * (this.x - l.start.x) + b * (this.y - l.start.y)) / (a * a + b * b);
-    return new Point(l.start.x + a * t, l.start.y + b * t);
   }
 
   /**
