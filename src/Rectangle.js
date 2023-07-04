@@ -8,9 +8,9 @@
  ******************************************************************************/
 import Config from './Config';
 import Point from './Point';
-import Line from './Line';
+import LineSegment from './LineSegment';
 import Polygon from './Polygon';
-import { eq, lt, normalize, calculateBoundaries, geq, leq, isZero, isPositive } from './Utils';
+import { eq, normalize, calculateBoundaries, geq, leq, isPositive } from './Utils';
 
 /**
  * The class represents a rectangle on the plane.
@@ -195,7 +195,7 @@ class Rectangle {
       for (const key in corner) {
         if (Object.hasOwn(corner, key)) {
           const p = corner[key];
-          corner[key] = p.rotateAroundImpl(o, sin, cos);
+          corner[key] = p.rotateImpl(o, sin, cos);
         }
       }
     }
@@ -220,11 +220,11 @@ class Rectangle {
   /**
    * Gets the array of sides of this rectangle.
    *
-   * @return {Line[]}
+   * @return {LineSegment[]}
    *    the array of sides of this rectangle.
    */
   sides() {
-    return this.vertexes.map((p, i) => new Line(p, this.vertexes[(i + 1) % 4]));
+    return this.vertexes.map((p, i) => new LineSegment(p, this.vertexes[(i + 1) % 4]));
   }
 
   /**
@@ -341,7 +341,7 @@ class Rectangle {
   rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const newVertexes = this.vertexes.map((p) => p.rotateAroundImpl(o, sin, cos));
+    const newVertexes = this.vertexes.map((p) => p.rotateImpl(o, sin, cos));
     // note that the rotated vertexes may not be normalized, since the top-left
     // vertex may not be the top-left vertex after rotation.
     return new Rectangle(newVertexes, false);
@@ -390,41 +390,41 @@ class Rectangle {
   /**
    * Gets the left side of this rectangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *     the left side of this rectangle.
    */
   leftSide() {
-    return new Line(this.corner['top-left'], this.corner['bottom-left']);
+    return new LineSegment(this.corner['top-left'], this.corner['bottom-left']);
   }
 
   /**
    * Gets the top side of this rectangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *     the top side of this rectangle.
    */
   topSide() {
-    return new Line(this.corner['top-left'], this.corner['top-right']);
+    return new LineSegment(this.corner['top-left'], this.corner['top-right']);
   }
 
   /**
    * Gets the right side of this rectangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *    the right side of this rectangle.
    */
   rightSide() {
-    return new Line(this.corner['top-right'], this.corner['bottom-right']);
+    return new LineSegment(this.corner['top-right'], this.corner['bottom-right']);
   }
 
   /**
    * Gets the bottom side of this rectangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *    the bottom side of this rectangle.
    */
   bottomSide() {
-    return new Line(this.corner['bottom-left'], this.corner['bottom-right']);
+    return new LineSegment(this.corner['bottom-left'], this.corner['bottom-right']);
   }
 
   /**

@@ -7,7 +7,7 @@
  *                                                                            *
  ******************************************************************************/
 import Config from './Config';
-import { eq, geq, leq, isNonPositive, isZero, sign, isNonNegative } from './Utils';
+import { eq, geq, leq, isZero, sign } from './Utils';
 
 /**
  * This class represents a point or a vector in a plane.
@@ -135,22 +135,6 @@ class Point {
   }
 
   /**
-   * Calculates the vector obtained by rotating the vector represented by this
-   * point by a given angle.
-   *
-   * @param {number} angle
-   *     The angle of rotation, in radians.
-   * @return {Point}
-   *     A new `Point` object representing the vector obtained by rotating the
-   *     vector represented by this point by the given angle.
-   */
-  rotate(angle) {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    return new Point(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
-  }
-
-  /**
    * Rotates this point by a given angle around a given point.
    *
    * @param {Point} o
@@ -161,10 +145,10 @@ class Point {
    *     A new `Point` object representing the ending position after rotating
    *     this point around the given point by the given angle.
    */
-  rotateAround(o, angle) {
+  rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    return this.rotateAroundImpl(o, sin, cos);
+    return this.rotateImpl(o, sin, cos);
   }
 
   /**
@@ -180,7 +164,7 @@ class Point {
    *     A new `Point` object representing the ending position after rotating
    *     this point around the given point by the given angle.
    */
-  rotateAroundImpl(o, sin, cos) {
+  rotateImpl(o, sin, cos) {
     const dx = this.x - o.x;
     const dy = this.y - o.y;
     return new Point(o.x + dx * cos - dy * sin, o.y + dx * sin + dy * cos);
@@ -229,9 +213,9 @@ class Point {
    */
   compareTo(p) {
     if (!eq(this.x, p.x)) {
-      return Math.sign(this.x - p.x);
+      return (this.x < p.x ? -1 : +1);
     } else if (!eq(this.y, p.y)) {
-      return Math.sign(this.y - p.y);
+      return (this.y < p.y ? -1 : +1);
     } else {
       return 0;
     }
@@ -264,11 +248,9 @@ class Point {
    * @see distanceToLineSegment
    */
   distanceToLine(l) {
-    const a_x = this.x - l.start.x;
-    const a_y = this.y - l.start.y;
-    const b_x = l.end.x - l.start.x;
-    const b_y = l.end.y - l.start.y;
-    return Math.abs(a_x * b_y - a_y * b_x) / Math.sqrt(b_x * b_x + b_y * b_y);
+    const u = this.subtract(l.start);
+    const v = l.end.subtract(l.start);
+    return Math.abs(u.cross(v)) / v.norm();
   }
 
   /**
@@ -294,23 +276,6 @@ class Point {
     } else {            // the projection of p is between the line segment endpoints
       return Math.abs(u.cross(v)) / Math.sqrt(w);
     }
-  }
-
-  /**
-   * Computes the nearest point on a specified line from this point, which is
-   * the perpendicular projection of this point onto the specified line.
-   *
-   * @param {Line} l
-   *     The specified line.
-   * @return {Point}
-   *     The nearest point on the specified line from this point, which is the
-   *     perpendicular projection of this point onto the specified line.
-   */
-  nearestPointToLine(l) {
-    const a = l.end.x - l.start.x;
-    const b = l.end.y - l.start.y;
-    const t = (a * (this.x - l.start.x) + b * (this.y - l.start.y)) / (a * a + b * b);
-    return new Point(l.start.x + a * t, l.start.y + b * t);
   }
 
   /**
@@ -399,6 +364,31 @@ class Point {
   }
 
   /**
+   * Tests whether this point is on the side of a specified triangle.
+   *
+   * @param {Triangle} triangle
+   *     The specified triangle.
+   * @return {boolean}
+   *    `true` if this point is on the side of the specified triangle, `false`
+   *    otherwise.
+   */
+  isOnTriangle(triangle) {
+    return (this.relationToTriangle(triangle) === 'on');
+  }
+
+  /**
+   * Tests whether this point is outside a specified triangle.
+   *
+   * @param {Triangle} triangle
+   *     The specified triangle.
+   * @return {boolean}
+   *    `true` if this point is outside the specified triangle, `false` otherwise.
+   */
+  isOutsideTriangle(triangle) {
+    return (this.relationToTriangle(triangle) === 'outside');
+  }
+
+  /**
    * Computes the relationship between this point and a specified triangle.
    *
    * @param {Triangle} triangle
@@ -414,11 +404,11 @@ class Point {
   relationToTriangle(triangle) {
     const center = triangle.center();
     const sides = triangle.sides();
-    const relation = center.relationToLine(sides[0]);
+    const relation = center.relationToLine(sides[0].line());
     for (let i = 0; i < 3; ++i) {
       if (this.isOnLineSegment(sides[i])) {
         return 'on';
-      } else if (this.relationToLine(sides[i]) !== relation) {
+      } else if (this.relationToLine(sides[i].line()) !== relation) {
         return 'outside';
       }
     }
@@ -450,6 +440,20 @@ class Point {
    */
   isOnRectangle(rectangle) {
     return (this.relationToRectangle(rectangle) === 'on');
+  }
+
+  /**
+   * Tests whether this point is exactly outside a specified rectangle.
+   *
+   * @param {Rectangle} rectangle
+   *    The specified rectangle.
+   * @return {boolean}
+   *    `true` if this point is exactly outside the specified rectangle, `false`
+   *    otherwise. Note that if this point lies exactly on a side of the specified
+   *    rectangle, this function will return `false`.
+   */
+  isOutsideRectangle(rectangle) {
+    return (this.relationToRectangle(rectangle) === 'outside');
   }
 
   /**
@@ -522,6 +526,33 @@ class Point {
   }
 
   /**
+   * Tests whether this point is on the side of a specified convex.
+   *
+   * @param {Polygon} convex
+   *    The specified convex.
+   * @return {boolean}
+   *    `true` if this point is on the side of the specified convex, `false`
+   *    otherwise.
+   */
+  isOnConvex(convex) {
+    return (this.relationToConvex(convex) === 'on');
+  }
+
+  /**
+   * Tests whether this point is exactly outside a specified convex.
+   *
+   * @param {Polygon} convex
+   *    The specified convex.
+   * @return {boolean}
+   *    `true` if this point is exactly outside the specified convex, `false`
+   *    otherwise. Note that if this point lies exactly on a side of the specified
+   *    convex, this function will return `false`.
+   */
+  isOutsideConvex(convex) {
+    return (this.relationToConvex(convex) === 'outside');
+  }
+
+  /**
    * Computes the relationship between this point and a specified convex polygon.
    *
    * @param {Polygon} convex
@@ -548,9 +579,10 @@ class Point {
     }
     q_x /= n;
     q_y /= n;
+    const sides = convex.sides();
     const q = new Point(q_x, q_y);
     for (let i = 0; i < n; ++i) {
-      const side = convex.side(i);
+      const side = sides[i];
       if (this.isOnLineSegment(side)) {
         return 'on';
       } else if (this.relationToLine(side) !== q.relationToLine(side)) {
@@ -570,6 +602,33 @@ class Point {
    */
   isInsidePolygon(polygon) {
     return (this.relationToPolygon(polygon) === 'inside');
+  }
+
+  /**
+   * Tests whether this point is on the side of a specified polygon.
+   *
+   * @param {Polygon} polygon
+   *    The specified polygon.
+   * @return {boolean}
+   *    `true` if this point is on the side of the specified polygon, `false`
+   *    otherwise.
+   */
+  isOnPolygon(polygon) {
+    return (this.relationToPolygon(polygon) === 'on');
+  }
+
+  /**
+   * Tests whether this point is exactly outside a specified polygon.
+   *
+   * @param {Polygon} polygon
+   *    The specified polygon.
+   * @return {boolean}
+   *    `true` if this point is exactly outside the specified polygon, `false`
+   *    otherwise. Note that if this point lies exactly on a side of the specified
+   *    polygon, this function will return `false`.
+   */
+  isOutsidePolygon(polygon) {
+    return (this.relationToPolygon(polygon) === 'outside');
   }
 
   /**
@@ -593,9 +652,10 @@ class Point {
       start: this,
       end: new Point(Config.NEGATIVE_INF, this.y),
     };
+    const sides = polygon.sides();
     const n = polygon.vertexes.length;
     for (let i = 0; i < n; ++i) {
-      const side = polygon.side(i);
+      const side = sides[i];
       if (this.isOnLineSegment(side)) {
         return 'on';
       }
@@ -611,7 +671,7 @@ class Point {
         if (side.end.y > side.start.y) {
           ++c;
         }
-      } else if (side.intersectsWithLineSegment(ray)) {
+      } else if (side.intersectsWith(ray)) {
         ++c;
       }
     }

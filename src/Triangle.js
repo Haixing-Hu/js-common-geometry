@@ -7,7 +7,7 @@
  *                                                                            *
  ******************************************************************************/
 import Point from './Point';
-import Line from './Line';
+import LineSegment from './LineSegment';
 import { calculateBoundaries, isNonZero, normalize } from './Utils';
 
 /**
@@ -108,14 +108,14 @@ class Triangle {
   /**
    * Gets the three sides of this triangle.
    *
-   * @return {Line[]}
+   * @return {LineSegment[]}
    *    the three sides of this triangle.
    */
   sides() {
     return [
-      new Line(this.a, this.b),
-      new Line(this.b, this.c),
-      new Line(this.c, this.a),
+      new LineSegment(this.a, this.b),
+      new LineSegment(this.b, this.c),
+      new LineSegment(this.c, this.a),
     ];
   }
 
@@ -172,31 +172,31 @@ class Triangle {
   /**
    * Gets the side between vertex A and B of this triangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *    the side between vertex A and B of this triangle.
    */
   sideAB() {
-    return new Line(this.a, this.b);
+    return new LineSegment(this.a, this.b);
   }
 
   /**
    * Gets the side between vertex B and C of this triangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *    the side between vertex B and C of this triangle.
    */
   sideBC() {
-    return new Line(this.b, this.c);
+    return new LineSegment(this.b, this.c);
   }
 
   /**
    * Gets the side between vertex C and A of this triangle.
    *
-   * @return {Line}
+   * @return {LineSegment}
    *    the side between vertex C and A of this triangle.
    */
   sideCA() {
-    return new Line(this.c, this.a);
+    return new LineSegment(this.c, this.a);
   }
 
   /**
@@ -237,7 +237,7 @@ class Triangle {
   rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const newVertexes = this.vertexes.map((p) => p.rotateAroundImpl(o, sin, cos));
+    const newVertexes = this.vertexes.map((p) => p.rotateImpl(o, sin, cos));
     // note that the rotated vertexes may not be normalized, since the top-left
     // vertex may not be the top-left vertex after rotation.
     return new Triangle(newVertexes, false);

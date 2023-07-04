@@ -15,7 +15,7 @@
  *    All rights reserved.                                                    *
  *                                                                            *
  ******************************************************************************/
-import {eq, geq, isNonZero, isNonPositive, isZero, leq} from './Utils';
+import { eq, geq, isNonPositive, isZero, leq } from './Utils';
 import Point from './Point';
 import Line from './Line';
 
@@ -56,7 +56,7 @@ class LineSegment {
    * @returns {Line}
    *    the `Line` object representing the line where this line segment lies.
    */
-  asLine() {
+  line() {
     return new Line(this.start, this.end);
   }
 
@@ -204,19 +204,30 @@ class LineSegment {
   }
 
   /**
-   * Rotates this line segment around its start point by a specified angle.
+   * Computes the nearest point on this line segment to the specified point,
+   * which is either the perpendicular projection of the specified point onto the
+   * line of this line segment or one of the endpoints of this line segment.
    *
-   * @param {number} angle
-   *    The angle of rotation in radians.
-   * @return {LineSegment}
-   *    A new `LineSegment` object representing the line segment rotated from
-   *    this line segment.
+   * @param {Point} p
+   *     The specified point.
+   * @return {Point}
+   *     The nearest point on this line segment to the specified point, which is
+   *     either the perpendicular projection of the specified point onto the
+   *     line of this line segment or one of the endpoints of this line segment.
    */
-  rotate(angle) {
-    const sin = Math.sin(angle);
-    const cos = Math.cos(angle);
-    const newEnd = this.end.rotateAroundImpl(this.start, sin, cos);
-    return new LineSegment(this.start, newEnd);
+  nearestPointToPoint(p) {
+    const u = this.end.subtract(this.start);
+    const v = p.subtract(this.start);
+    const r = u.dot(v);
+    if (r <= 0) {       // the projection of p is on the backward extension of l
+      return this.start;
+    }
+    const w = u.dot(u);
+    if (geq(r, w)) {    // the projection of p is on the forward extension of l
+      return this.end;
+    } else {            // the projection of p is between the line segment endpoints
+      return this.line().nearestPointToPoint(p);
+    }
   }
 
   /**
@@ -230,11 +241,11 @@ class LineSegment {
    *    A new `LineSegment` object representing the line segment rotated from
    *    this line segment.
    */
-  rotateAround(o, angle) {
+  rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const newStart = this.start.rotateAroundImpl(o, sin, cos);
-    const newEnd = this.start.rotateAroundImpl(o, sin, cos);
+    const newStart = this.start.rotateImpl(o, sin, cos);
+    const newEnd = this.start.rotateImpl(o, sin, cos);
     return new LineSegment(newStart, newEnd);
   }
 
@@ -253,6 +264,24 @@ class LineSegment {
   }
 
   /**
+   * Checks if this line segment contains another line segment.
+   *
+   * A line segment contains another line segment if and only if both the ending
+   * points of the other line segment are on the line segment.
+   *
+   * @param {LineSegment} other
+   *    Another line segment.
+   * @return {boolean}
+   *    `true` if this line segment contains the other line segment, `false`
+   *    otherwise.
+   * @see Point.isOnLineSegment
+   */
+  contains(other) {
+    return other.start.isOnLineSegment(this)
+        && other.end.isOnLineSegment(this);
+  }
+
+  /**
    * Tests whether this line segment contains the specified point.
    *
    * @param {Point} p
@@ -260,14 +289,14 @@ class LineSegment {
    * @return {boolean}
    *    `true` if this line segment contains the specified point, `false`
    *    otherwise.
-   * @see Point.isOnLineSegment()
+   * @see Point.isOnLineSegment
    */
   containsPoint(p) {
     return p.isOnLineSegment(this);
   }
 
   /**
-   * Checks if this directed line segment is equal to another directed line
+   * Tests whether this directed line segment is equal to another directed line
    * segment.
    *
    * Note that a directed line segment is equal to another directed line segment
@@ -324,8 +353,8 @@ class LineSegment {
     if (this.equals(other)) {
       return 'equal';
     }
-    if (this.parallelWith(other)) {
-      if (this.start.isOnLine(other)) {
+    if (this.isParallelWith(other)) {
+      if (this.start.isOnLine(other.line())) {
         return 'collinear';
       } else {
         return 'parallel';
@@ -347,14 +376,34 @@ class LineSegment {
    *    `true` if this line segment is parallel with the other line segment;
    *    `false` otherwise. Note that is two line segments are collinear or equal,
    *    this function considers them as parallel and returns `true`.
-   * @see equals
    * @see relationTo
+   * @see equals
+   * @see isCollinearWith
    * @see intersectsWith
    */
-  parallelWith(other) {
+  isParallelWith(other) {
     const u = this.end.subtract(this.start);
     const v = other.end.subtract(other.start);
     return isZero(u.cross(v));
+  }
+
+  /**
+   * Tests whether this line segment is collinear with another line segment.
+   *
+   * @param {LineSegment} other
+   *    Another line segment.
+   * @return {boolean}
+   *    `true` if this line segment is collinear with the other line segment;
+   *    `false` otherwise. Note that is two line segments are equal, this
+   *    function considers them as collinear and returns `true`.
+   * @see relationTo
+   * @see equals
+   * @see isParallelWith
+   * @see intersectsWith
+   */
+  isCollinearWith(other) {
+    return this.isParallelWith(other)
+        && this.start.isOnLine(other.line());
   }
 
   /**
@@ -367,8 +416,13 @@ class LineSegment {
    *     Another line segment.
    * @return {boolean}
    *     Returns `true` if this line segment intersects with the other line
-   *     segment; otherwise, returns `false`.
+   *     segment; otherwise, returns `false`. Note that if thw two line segments
+   *     are equal, or they are collinear and overlapping, **they are also
+   *     considered as intersecting**.
    * @see relationTo
+   * @see equals
+   * @see isParallelWith
+   * @see isCollinearWith
    */
   intersectsWith(other) {
     return geq(Math.max(this.start.x, this.end.x), Math.min(other.start.x, other.end.x))
@@ -382,22 +436,6 @@ class LineSegment {
   }
 
   /**
-   * Tests whether this line segment intersects with another line.
-   *
-   * @param {Line} other
-   *     The specified line.
-   * @return {boolean}
-   *     Returns `true` if this line intersects with the specified line;
-   *     otherwise, returns `false`.
-   */
-  intersectsWithLine(other) {
-    // FIXME
-    const r = (this.start.x - this.end.x) * (other.start.y - other.end.y)
-            - (this.start.y - this.end.y) * (other.start.x - other.end.x);
-    return isNonZero(r);
-  }
-
-  /**
    * Calculates the intersection point of this line segment and another line
    * segment.
    *
@@ -405,13 +443,152 @@ class LineSegment {
    *     Another line segment.
    * @return {Point|string}
    *     Returns the intersection point if this line segment intersects with the
-   *     other line segment; returns the string 'online' if the two line segments
-   *     are collinear; returns the string 'parallel' if the two line segments
-   *     are parallel; returns the string 'disjoint' if the two line segments
-   *     are disjoint.
+   *     other line segment; returns the string 'collinear' if the two line
+   *     segments are collinear or equal; returns the string 'parallel' if the
+   *     two line segments are parallel; returns the string 'disjoint' if the
+   *     two line segments are disjoint.
    */
-  crossPointWith(other) {
-    // TODO
+  intersectionPointWith(other) {
+    const r = this.line().intersectionPointWith(other.line());
+    if (typeof r === 'string') {
+      if (r === 'parallel') {
+        return 'parallel';
+      } else if (r === 'collinear') {
+        // This line segment and the other line segment are collinear,
+        // then we must test whether they are overlapping or disjoint.
+        // Note that we CANNOT just compare the x-coordinates or y-coordinates
+        // of their ending points, since they may be parallel with x-axis or y-axis.
+        const thisPoints = [this.start, this.end].sort((p1, p2) => p1.compareTo(p2));
+        const otherPoints = [other.start, other.end].sort((p1, p2) => p1.compareTo(p2));
+        const r1 = thisPoints[1].compareTo(otherPoints[0]);
+        const r2 = otherPoints[1].compareTo(thisPoints[0]);
+        if (r1 < 0 || r2 < 0) {
+          return 'disjoint';
+        } else if (r1 === 0) {
+          return thisPoints[1];
+        } else if (r2 === 0) {
+          return otherPoints[1];
+        } else {
+          return 'collinear';
+        }
+      }
+    } else if (r instanceof Point) {
+      if (this.containsPoint(r) && other.containsPoint(r)) {
+        return r;
+      } else {
+        return 'disjoint';
+      }
+    }
+    throw Error('Unexpected return value from Line.intersectionPointWith()');
+  }
+
+  /**
+   * Calculates the relationship between this line segment and a specified line.
+   *
+   * @param {Line} l
+   *    A specified line.
+   * @return {string}
+   *    The relationship between this line segment and the specified line, which
+   *    may have the following values:
+   *    - `'collinear'`: this line segment is collinear with the specified line,
+   *       i.e., all its ending points are on the specified line.
+   *    - `'parallel'`: this line segment is parallel with the specified line.
+   *    - `'intersect'`: this line segment intersects with the specified line.
+   *    - `'left'`: this line segment is on the left side of the specified line.
+   *    - `'right'`: this line segment is on the left side of the specified line.
+   */
+  relationToLine(l) {
+    const r1 = this.start.relationToLine(l);
+    const r2 = this.end.relationToLine(l);
+    if (r1 === 'on' && r2 === 'on') {
+      return 'collinear';
+    } else if (r1 !== r2) {
+      return 'intersect';
+    } else if (this.isParallelWithLine(l)) {
+      return 'parallel';
+    } else {
+      return r1;
+    }
+  }
+
+  /**
+   * Tests whether this line segment is parallel with the specified line.
+   *
+   * @param {Line} l
+   *    The specified line.
+   * @returns {boolean}
+   *    `true` if this line segment is parallel with the specified line; `false`
+   *    otherwise. Note that is this line segment lies on the specified line,
+   *    this function considers them as parallel and returns `true`.
+   * @see relationToLine
+   * @see isOnLine
+   * @see intersectsWithLine
+   */
+  isParallelWithLine(l) {
+    const u = this.end.subtract(this.start);
+    const v = l.end.subtract(l.start);
+    return isZero(u.cross(v));
+  }
+
+  /**
+   * Tests whether this line segment is collinear with the specified line.
+   *
+   * @param {Line} l
+   *    The specified line.
+   * @return {boolean}
+   *    `true` if this line segment is collinear with the specified line;
+   *    `false` otherwise.
+   * @see relationToLine
+   * @see isParallelWithLine
+   * @see intersectsWithLine
+   */
+  isCollinearWithLine(l) {
+    return this.start.isOnLine(l) && this.end.isOnLine(l);
+  }
+
+  /**
+   * Tests whether this line segment intersects with a specified line.
+   *
+   * @param {Line} l
+   *     The specified line.
+   * @return {boolean}
+   *     Returns `true` if this line intersects with the specified line;
+   *     otherwise, returns `false`.
+   */
+  intersectsWithLine(l) {
+    const r1 = this.start.relationToLine(l);
+    if (r1 === 'on') {
+      return true;
+    }
+    const r2 = this.end.relationToLine(l);
+    return r1 !== r2;
+  }
+
+  /**
+   * Calculates the intersection point of this line segment and a specified line.
+   *
+   * @param {Line} l
+   *     The specified line.
+   * @return {Point|string}
+   *     Returns the intersection point if this line segment intersects with the
+   *     specified line; returns the string 'collinear' if this line segment is
+   *     collinear with the specified line; returns the string 'parallel' if
+   *     this line segment is parallel with the specified line; returns the
+   *     string 'disjoint' if this line segment is disjoint with the specified
+   *     line.
+   */
+  intersectionPointWithLine(l) {
+    const r = this.line().intersectionPointWith(l);
+    if (typeof r === 'string') {
+      return r;
+    } else if (r instanceof Point) {
+      if (this.containsPoint(r)) {
+        return r;
+      } else {
+        return 'disjoint';
+      }
+    }
+    throw Error('Unexpected return value from Line.intersectionPointWith()');
   }
 
   /**
@@ -431,7 +608,7 @@ class LineSegment {
     const pts = [];
     const n = polygon.vertexes.length;
     for (let i = 0; i < n; ++i) {
-      const side = new Line(polygon[i], polygon[(i + 1) % n]);
+      const side = new LineSegment(polygon[i], polygon[(i + 1) % n]);
       if (this.start.isOnLineSegment(side)) {
         pts.push(this.start);
       } else if (this.end.isOnLineSegment(side)) {
@@ -440,7 +617,7 @@ class LineSegment {
         pts.push(side.start);
       } else if (side.end.isOnLineSegment(this)) {
         pts.push(side.end);
-      } else if (this.intersectsWithLineSegment(side)) {
+      } else if (this.intersectsWith(side)) {
         return false;
       }
     }

@@ -8,10 +8,11 @@
  ******************************************************************************/
 import Point from './Point';
 import Line from './Line';
+import LineSegment from './LineSegment';
 import { calculateBoundaries, isZero, normalize, modulo } from './Utils';
 
 /**
- * This class represents a polygon in a plane.
+ * This class represents a simple polygon in a plane.
  *
  * This class is immutable.
  *
@@ -19,12 +20,12 @@ import { calculateBoundaries, isZero, normalize, modulo } from './Utils';
  */
 class Polygon {
   /**
-   * Tests whether the specified vertexes can form a valid polygon.
+   * Tests whether the specified vertexes can form a valid simple polygon.
    *
    * @param {Point[]} vertexes
    *    the array of vertexes to test.
    * @returns {boolean}
-   *    `true` if the specified vertexes can form a valid polygon; `false`
+   *    `true` if the specified vertexes can form a valid simple polygon; `false`
    *    otherwise.
    */
   static isValid(vertexes) {
@@ -39,6 +40,8 @@ class Polygon {
       const v0 = vertexes[i - 1];
       const v1 = vertexes[i];
       const v2 = vertexes[(i + 1) % n];
+      // if any 3 vertex are on the same line, then the vertexes cannot form a
+      // valid simple polygon.
       if (isZero(v1.times(v0, v2))) {
         return false;
       }
@@ -96,12 +99,12 @@ class Polygon {
   /**
    * Gets the array of sides of this polygon.
    *
-   * @return {Line[]}
+   * @return {LineSegment[]}
    *    the array of sides of this polygon.
    */
   sides() {
     const n = this.vertexes.length;
-    return this.vertexes.map((p, i) => new Line(p, this.vertexes[(i + 1) % n]));
+    return this.vertexes.map((p, i) => new LineSegment(p, this.vertexes[(i + 1) % n]));
   }
 
   /**
@@ -143,14 +146,14 @@ class Polygon {
    *     the index of the specified side to get. If this index is larger
    *     than or equal to the number of sides of this polygon, it will be
    *     treated as module the number of sides.
-   * @return {Line}
+   * @return {LineSegment}
    *     the specified side of this polygon.
    */
   side(i) {
     const n = this.vertexes.length;
     const u = this.vertexes[modulo(i, n)];
     const v = this.vertexes[modulo(i + 1, n)];
-    return new Line(u, v);
+    return new LineSegment(u, v);
   }
 
   /**
@@ -245,11 +248,10 @@ class Polygon {
     if (n < 3) {
       return false;
     }
-    const side = new Line(this.vertexes[0], this.vertexes[1]);
-    const relation = this.vertexes[2].relationToLine(side);
+    const firstSide = new Line(this.vertexes[0], this.vertexes[1]);
+    const relation = this.vertexes[2].relationToLine(firstSide);
     for (let i = 1; i < n; ++i) {
-      side.start = this.vertexes[i];
-      side.end = this.vertexes[(i + 1) % n];
+      const side = new Line(this.vertexes[i], this.vertexes[(i + 1) % n]);
       const p = this.vertexes[(i + 2) % n];
       if (p.relationToLine(side) !== relation) {
         return false;
@@ -272,7 +274,7 @@ class Polygon {
   rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const vertexes = this.vertexes.map((v) => v.rotateAroundImpl(o, sin, cos));
+    const vertexes = this.vertexes.map((v) => v.rotateImpl(o, sin, cos));
     return new Polygon(vertexes);
   }
 
