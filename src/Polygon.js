@@ -9,6 +9,7 @@
 import Point from './Point';
 import Line from './Line';
 import LineSegment from './LineSegment';
+import Rectangle from './Rectangle';
 import { calculateBoundaries, isZero, normalize, modulo } from './Utils';
 
 /**
@@ -80,20 +81,36 @@ class Polygon {
    */
   constructor(vertexes, normalized = false) {
     if (normalized) {
-      this.vertexes = vertexes.slice();
+      this._vertexes = vertexes.slice();
     } else {
       if (!Polygon.isValid(vertexes)) {
         throw new Error('The vertexes cannot form a valid polygon.');
       }
-      this.vertexes = normalize(vertexes);
+      this._vertexes = normalize(vertexes);
     }
     // calculate the boundaries
-    const boundary = calculateBoundaries(this.vertexes);
-    this.left = boundary.left;
-    this.right = boundary.right;
-    this.top = boundary.top;
-    this.bottom = boundary.bottom;
+    this._boundary = calculateBoundaries(this._vertexes);
     Object.freeze(this);        //  make this object immutable
+  }
+
+  /**
+   * Gets the number of vertexes of this polygon.
+   *
+   * @return {number}
+   *    the number of vertexes of this polygon.
+   */
+  size() {
+    return this._vertexes.length;
+  }
+
+  /**
+   * Gets the array of vertexes of this polygon.
+   *
+   * @return {Point[]}
+   *    the array of vertexes of this polygon.
+   */
+  vertexes() {
+    return this._vertexes;
   }
 
   /**
@@ -103,8 +120,8 @@ class Polygon {
    *    the array of sides of this polygon.
    */
   sides() {
-    const n = this.vertexes.length;
-    return this.vertexes.map((p, i) => new LineSegment(p, this.vertexes[(i + 1) % n]));
+    const n = this._vertexes.length;
+    return this._vertexes.map((p, i) => new LineSegment(p, this._vertexes[(i + 1) % n]));
   }
 
   /**
@@ -114,10 +131,10 @@ class Polygon {
    *    the array of angles of this polygon, in radians.
    */
   angles() {
-    const n = this.vertexes.length;
-    return this.vertexes.map((p, i) => {
-      const p0 = this.vertexes[(i + n - 1) % n];
-      const p1 = this.vertexes[(i + 1) % n];
+    const n = this._vertexes.length;
+    return this._vertexes.map((p, i) => {
+      const p0 = this._vertexes[(i + n - 1) % n];
+      const p1 = this._vertexes[(i + 1) % n];
       const u = p0.subtract(p);
       const v = p1.subtract(p);
       return u.angleWith(v);
@@ -128,31 +145,31 @@ class Polygon {
    * Gets the specified vertex of this polygon.
    *
    * @param {number} i
-   *     the index of the specified vertex to get. If this index is larger
-   *     than or equal to the number of vertexes of this polygon, it will be
-   *     treated as module the number of vertexes.
+   *     the index of the specified vertex to get. If this index is outside the
+   *     range `[0, n)`, where `n` is the number of vertexes of this polygon, it
+   *     will be treated as module `n`.
    * @returns {Point}
    *     the specified vertex of this polygon.
    */
   vertex(i) {
-    const n = this.vertexes.length;
-    return this.vertexes[modulo(i, n)];
+    const n = this._vertexes.length;
+    return this._vertexes[modulo(i, n)];
   }
 
   /**
    * Gets the specified side of this polygon.
    *
    * @param {number} i
-   *     the index of the specified side to get. If this index is larger
-   *     than or equal to the number of sides of this polygon, it will be
-   *     treated as module the number of sides.
+   *     the index of the starting vertex of the specified side to get. If this
+   *     index is outside the range `[0, n)`, where `n` is the number of
+   *     vertexes of this polygon, it will be treated as module `n`.
    * @return {LineSegment}
    *     the specified side of this polygon.
    */
   side(i) {
-    const n = this.vertexes.length;
-    const u = this.vertexes[modulo(i, n)];
-    const v = this.vertexes[modulo(i + 1, n)];
+    const n = this._vertexes.length;
+    const u = this._vertexes[modulo(i, n)];
+    const v = this._vertexes[modulo(i + 1, n)];
     return new LineSegment(u, v);
   }
 
@@ -167,13 +184,77 @@ class Polygon {
    *     the specified angle of this polygon, in radians.
    */
   angle(i) {
-    const n = this.vertexes.length;
-    const p0 = this.vertexes[modulo(i - 1, n)];
-    const p = this.vertexes[modulo(i, n)];
-    const p1 = this.vertexes[modulo(i + 1, n)];
-    const u = p0.subtract(p);
-    const v = p1.subtract(p);
+    const n = this._vertexes.length;
+    const x = this._vertexes[modulo(i - 1, n)];
+    const y = this._vertexes[modulo(i, n)];
+    const z = this._vertexes[modulo(i + 1, n)];
+    const u = x.subtract(y);
+    const v = z.subtract(y);
     return u.angleWith(v);
+  }
+
+  /**
+   * Gets the left boundary of this polygon, i.e., the smallest x-coordinate of
+   * all the vertexes of this polygon.
+   *
+   * @return {number}
+   *    the left boundary of this polygon.
+   */
+  left() {
+    return this._boundary.left;
+  }
+
+  /**
+   * Gets the right boundary of this polygon, i.e., the largest x-coordinate of
+   * all the vertexes of this polygon.
+   *
+   * @return {number}
+   *    the right boundary of this polygon.
+   */
+  right() {
+    return this._boundary.right;
+  }
+
+  /**
+   * Gets the top boundary of this polygon, i.e., the largest or smallest
+   * y-coordinate of all the vertexes of this polygon, depending on the value of
+   * Config.Y_AXIS_DIRECTION.
+   *
+   * @return {number}
+   *    the top boundary of this polygon.
+   * @see Config.Y_AXIS_DIRECTION
+   */
+  top() {
+    return this._boundary.top;
+  }
+
+  /**
+   * Gets the bottom boundary of this polygon, i.e., the smallest or largest
+   * y-coordinate of all the vertexes of this polygon, depending on the value of
+   * Config.Y_AXIS_DIRECTION.
+   *
+   * @return {number}
+   *    the bottom boundary of this polygon.
+   * @see Config.Y_AXIS_DIRECTION
+   */
+  bottom() {
+    return this._boundary.bottom;
+  }
+
+  /**
+   * Gets the bounding rectangle of this polygon.
+   *
+   * @return {Rectangle}
+   *    the bounding rectangle of this polygon.
+   */
+  boundingRectangle() {
+    const vertexes = [
+      new Point(this._boundary.left, this._boundary.top),
+      new Point(this._boundary.right, this._boundary.top),
+      new Point(this._boundary.right, this._boundary.bottom),
+      new Point(this._boundary.left, this._boundary.bottom),
+    ];
+    return new Rectangle(vertexes, true);
   }
 
   /**
@@ -183,14 +264,14 @@ class Polygon {
    *    the area of this polygon.
    */
   area() {
-    const n = this.vertexes.length;
+    const n = this._vertexes.length;
     if (n < 3) {
       return 0;
     }
     let result = 0;
     for (let i = 0; i < n; ++i) {
-      const p = this.vertexes[i];
-      const q = this.vertexes[(i + 1) % n];
+      const p = this._vertexes[i];
+      const q = this._vertexes[(i + 1) % n];
       result += p.x * q.y;
       result -= p.y * q.x;
     }
@@ -216,7 +297,7 @@ class Polygon {
    *     the center/centroid of this polygon.
    */
   center() {
-    const n = this.vertexes.length;
+    const n = this._vertexes.length;
     if (n === 0) {
       throw new Error('This polygon has no vertex.');
     }
@@ -224,8 +305,8 @@ class Polygon {
     let cy = 0;
     let area = 0;
     for (let i = 0; i < n; ++i) {
-      const p1 = this.vertexes[i];
-      const p2 = this.vertexes[(i + 1) % n];
+      const p1 = this._vertexes[i];
+      const p2 = this._vertexes[(i + 1) % n];
       const a = p1.x * p2.y - p2.x * p1.y;
       cx += (p1.x + p2.x) * a;
       cy += (p1.y + p2.y) * a;
@@ -244,15 +325,15 @@ class Polygon {
    *     `true` if this polygon is a convex; `false` otherwise.
    */
   isConvex() {
-    const n = this.vertexes.length;
+    const n = this._vertexes.length;
     if (n < 3) {
       return false;
     }
-    const firstSide = new Line(this.vertexes[0], this.vertexes[1]);
-    const relation = this.vertexes[2].relationToLine(firstSide);
+    const firstSide = new Line(this._vertexes[0], this._vertexes[1]);
+    const relation = this._vertexes[2].relationToLine(firstSide);
     for (let i = 1; i < n; ++i) {
-      const side = new Line(this.vertexes[i], this.vertexes[(i + 1) % n]);
-      const p = this.vertexes[(i + 2) % n];
+      const side = new Line(this._vertexes[i], this._vertexes[(i + 1) % n]);
+      const p = this._vertexes[(i + 2) % n];
       if (p.relationToLine(side) !== relation) {
         return false;
       }
@@ -274,7 +355,7 @@ class Polygon {
   rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const vertexes = this.vertexes.map((v) => v.rotateImpl(o, sin, cos));
+    const vertexes = this._vertexes.map((v) => v.rotateImpl(o, sin, cos));
     return new Polygon(vertexes);
   }
 
@@ -289,7 +370,7 @@ class Polygon {
    *    translating this polygon by the specified displacement.
    */
   translate(delta) {
-    return new Polygon(this.vertexes.map((v) => v.add(delta)));
+    return new Polygon(this._vertexes.map((v) => v.add(delta)));
   }
 
   /**
@@ -304,9 +385,9 @@ class Polygon {
    *    `true` if this polygon is equal to the other polygon, `false` otherwise.
    */
   equals(other) {
-    const n = this.vertexes.length;
+    const n = this._vertexes.length;
     for (let i = 0; i < n; ++i) {
-      if (!this.vertexes[i].equals(other.vertexes[i])) {
+      if (!this._vertexes[i].equals(other._vertexes[i])) {
         return false;
       }
     }
@@ -327,9 +408,9 @@ class Polygon {
    *     zero if this polygon equals the other polygon.
    */
   compareTo(t) {
-    const n = this.vertexes.length;
+    const n = this._vertexes.length;
     for (let i = 0; i < n; ++i) {
-      const result = this.vertexes[i].compareTo(t.vertexes[i]);
+      const result = this._vertexes[i].compareTo(t._vertexes[i]);
       if (result !== 0) {
         return result;
       }

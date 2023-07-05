@@ -281,8 +281,8 @@ class Point {
   /**
    * Determines whether this point lies on a specified line.
    *
-   * @param {Line} l
-   *    The specified line.
+   * @param {Line|LineSegment} l
+   *    The specified line (or line segment, which will be treated as a line).
    * @return {boolean}
    *    `true` if this point lies on the specified line, `false` otherwise.
    */
@@ -314,8 +314,8 @@ class Point {
   /**
    * Computes the relationship between this point and a specified line.
    *
-   * @param {Line} l
-   *     The specified line.
+   * @param {Line|LineSegment} l
+   *     The specified line (or line segment, which will be treated as a line).
    * @return {string}
    *     The relationship between this point and the specified line. It can have
    *     the following possible values:
@@ -404,11 +404,11 @@ class Point {
   relationToTriangle(triangle) {
     const center = triangle.center();
     const sides = triangle.sides();
-    const relation = center.relationToLine(sides[0].line());
+    const relation = center.relationToLine(sides[0]);
     for (let i = 0; i < 3; ++i) {
       if (this.isOnLineSegment(sides[i])) {
         return 'on';
-      } else if (this.relationToLine(sides[i].line()) !== relation) {
+      } else if (this.relationToLine(sides[i]) !== relation) {
         return 'outside';
       }
     }
@@ -567,15 +567,16 @@ class Point {
    *      specified convex polygon.
    */
   relationToConvex(convex) {
-    const n = convex.vertexes.length;
+    const n = convex.size();
     if (n < 3) {
       throw new Error('The specified polygon must have at least 3 vertexes.');
     }
+    const vertexes = convex.vertexes();
     let q_x = 0;
     let q_y = 0;
     for (let i = 0; i < n; ++i) {
-      q_x += convex.vertexes[i].x;
-      q_y += convex.vertexes[i].y;
+      q_x += vertexes[i].x;
+      q_y += vertexes[i].y;
     }
     q_x /= n;
     q_y /= n;
@@ -653,7 +654,7 @@ class Point {
       end: new Point(Config.NEGATIVE_INF, this.y),
     };
     const sides = polygon.sides();
-    const n = polygon.vertexes.length;
+    const n = polygon.size();
     for (let i = 0; i < n; ++i) {
       const side = sides[i];
       if (this.isOnLineSegment(side)) {

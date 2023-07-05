@@ -354,7 +354,7 @@ class LineSegment {
       return 'equal';
     }
     if (this.isParallelWith(other)) {
-      if (this.start.isOnLine(other.line())) {
+      if (this.start.isOnLine(other)) {
         return 'collinear';
       } else {
         return 'parallel';
@@ -403,7 +403,7 @@ class LineSegment {
    */
   isCollinearWith(other) {
     return this.isParallelWith(other)
-        && this.start.isOnLine(other.line());
+        && this.start.isOnLine(other);
   }
 
   /**
@@ -449,7 +449,7 @@ class LineSegment {
    *     two line segments are disjoint.
    */
   intersectionPointWith(other) {
-    const r = this.line().intersectionPointWith(other.line());
+    const r = this.line().intersectionPointWith(other);
     if (typeof r === 'string') {
       if (r === 'parallel') {
         return 'parallel';
@@ -592,6 +592,63 @@ class LineSegment {
   }
 
   /**
+   * Computes the relationship between this line segment and a triangle.
+   *
+   * @param {Triangle} triangle
+   *    The specified triangle.
+   * @return {string}
+   *    The relationship between this line segment and the specified triangle,
+   *    which is one of the following:
+   *    - `'inside'`: this line segment is inside the specified triangle.
+   *    - `'outside'`: this line segment is outside the specified triangle.
+   *    - `'intersect'`: this line segment intersects with the specified
+   *      triangle.
+   *    - `'on'`: this line segment lies on one of the sides of the specified
+   *      triangle.
+   */
+  relationToTriangle(triangle) {
+
+  }
+
+  /**
+   * Computes the relationship between this line segment and a rectangle.
+   *
+   * @param {Rectangle} rectangle
+   *    The specified rectangle.
+   * @return {string}
+   *    The relationship between this line segment and the specified rectangle,
+   *    which is one of the following:
+   *    - `'inside'`: this line segment is inside the specified rectangle`.
+   *    - `'outside'`: this line segment is outside the specified rectangle.
+   *    - `'intersect'`: this line segment intersects with the specified
+   *      rectangle.
+   *    - `'on'`: this line segment lies on one of the sides of the specified
+   *      rectangle.
+   */
+  relationToRectangle(rectangle) {
+
+  }
+
+  /**
+   * Computes the relationship between this line segment and a polygon.
+   *
+   * @param {Polygon} polygon
+   *    The specified polygon.
+   * @return {string}
+   *    The relationship between this line segment and the specified polygon,
+   *    which is one of the following:
+   *    - `'inside'`: this line segment is inside the specified polygon.
+   *    - `'outside'`: this line segment is outside the specified polygon.
+   *    - `'intersect'`: this line segment intersects with the specified
+   *      polygon.
+   *    - `'on'`: this line segment lies on one of the sides of the specified
+   *      polygon.
+   */
+  relationToPolygon(polygon) {
+
+  }
+
+  /**
    * Tests whether this line segment is inside a specified polygon.
    *
    * @param {Polygon} polygon
@@ -606,7 +663,7 @@ class LineSegment {
       return false;
     }
     const pts = [];
-    const n = polygon.vertexes.length;
+    const n = polygon._vertexes.length;
     for (let i = 0; i < n; ++i) {
       const side = new LineSegment(polygon[i], polygon[(i + 1) % n]);
       if (this.start.isOnLineSegment(side)) {

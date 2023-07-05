@@ -8,7 +8,8 @@
  ******************************************************************************/
 import Point from './Point';
 import LineSegment from './LineSegment';
-import { calculateBoundaries, isNonZero, normalize } from './Utils';
+import Rectangle from './Rectangle';
+import { calculateBoundaries, isNonZero, modulo, normalize } from './Utils';
 
 /**
  * This class represents a triangle in a plane.
@@ -86,23 +87,29 @@ class Triangle {
    */
   constructor(vertexes, normalized = false) {
     if (normalized) {
-      this.vertexes = vertexes.slice();
+      this._vertexes = vertexes.slice();
     } else {
       if (!Triangle.isValid(vertexes)) {
         throw new Error('The vertexes cannot form a valid triangle.');
       }
-      this.vertexes = normalize(vertexes);
+      this._vertexes = normalize(vertexes);
     }
-    this.a = this.vertexes[0];
-    this.b = this.vertexes[1];
-    this.c = this.vertexes[2];
+    this.a = this._vertexes[0];
+    this.b = this._vertexes[1];
+    this.c = this._vertexes[2];
     // calculate the boundaries
-    const boundary = calculateBoundaries(this.vertexes);
-    this.left = boundary.left;
-    this.right = boundary.right;
-    this.top = boundary.top;
-    this.bottom = boundary.bottom;
+    this._boundary = calculateBoundaries(this._vertexes);
     Object.freeze(this);    //  make this object immutable
+  }
+
+  /**
+   * Gets the array of vertexes of this triangle.
+   *
+   * @return {Point[]}
+   *    the array of vertexes of this triangle.
+   */
+  vertexes() {
+    return this._vertexes;
   }
 
   /**
@@ -131,6 +138,52 @@ class Triangle {
       this.angleB(),
       this.angleC(),
     ];
+  }
+
+  /**
+   * Gets the specified vertex of this triangle.
+   *
+   * @param {number} i
+   *     the index of the specified vertex to get. If this index is outside the
+   *     range of `[0, 3)`, it will be treated as module 3.
+   * @returns {Point}
+   *     the specified vertex of this triangle.
+   */
+  vertex(i) {
+    return this._vertexes[modulo(i, 3)];
+  }
+
+  /**
+   * Gets the specified side of this triangle.
+   *
+   * @param {number} i
+   *     the index of the starting vertex of the specified side to get. If this
+   *     index is outside the range of `[0, 3)`, it will be treated as module 3.
+   * @return {LineSegment}
+   *     the specified side of this triangle.
+   */
+  side(i) {
+    const u = this._vertexes[modulo(i, 3)];
+    const v = this._vertexes[modulo(i + 1, 3)];
+    return new LineSegment(u, v);
+  }
+
+  /**
+   * Gets the specified angle of this triangle.
+   *
+   * @param {number} i
+   *     the index of the specified angle to get. If this index is outside the
+   *     range of `[0, 3)`, it will be treated as module 3.
+   * @return {number}
+   *     the specified angle of this triangle, in radian.
+   */
+  angle(i) {
+    const x = this._vertexes[modulo(i - 1, 3)];
+    const y = this._vertexes[modulo(i, 3)];
+    const z = this._vertexes[modulo(i + 1, 3)];
+    const u = x.subtract(y);
+    const v = z.subtract(y);
+    return u.angleWith(v);
   }
 
   /**
@@ -200,6 +253,70 @@ class Triangle {
   }
 
   /**
+   * Gets the left boundary of this triangle, i.e., the smallest x-coordinate of
+   * all the vertexes of this triangle.
+   *
+   * @return {number}
+   *    the left boundary of this triangle.
+   */
+  left() {
+    return this._boundary.left;
+  }
+
+  /**
+   * Gets the right boundary of this triangle, i.e., the largest x-coordinate of
+   * all the vertexes of this triangle.
+   *
+   * @return {number}
+   *    the right boundary of this triangle.
+   */
+  right() {
+    return this._boundary.right;
+  }
+
+  /**
+   * Gets the top boundary of this triangle, i.e., the largest or smallest
+   * y-coordinate of all the vertexes of this triangle, depending on the value of
+   * Config.Y_AXIS_DIRECTION.
+   *
+   * @return {number}
+   *    the top boundary of this triangle.
+   * @see Config.Y_AXIS_DIRECTION
+   */
+  top() {
+    return this._boundary.top;
+  }
+
+  /**
+   * Gets the bottom boundary of this triangle, i.e., the smallest or largest
+   * y-coordinate of all the vertexes of this triangle, depending on the value of
+   * Config.Y_AXIS_DIRECTION.
+   *
+   * @return {number}
+   *    the bottom boundary of this triangle.
+   * @see Config.Y_AXIS_DIRECTION
+   */
+  bottom() {
+    return this._boundary.bottom;
+  }
+
+  /**
+   * Gets the bounding rectangle of this triangle.
+   *
+   * @return {Rectangle}
+   *    the bounding rectangle of this triangle.
+   */
+  boundingRectangle() {
+    const vertexes = [
+      new Point(this._boundary.left, this._boundary.top),
+      new Point(this._boundary.right, this._boundary.top),
+      new Point(this._boundary.right, this._boundary.bottom),
+      new Point(this._boundary.left, this._boundary.bottom),
+    ];
+    return new Rectangle(vertexes, true);
+  }
+
+  /**
    * Gets the center point of this triangle.
    *
    * @return {Point}
@@ -237,7 +354,7 @@ class Triangle {
   rotate(o, angle) {
     const sin = Math.sin(angle);
     const cos = Math.cos(angle);
-    const newVertexes = this.vertexes.map((p) => p.rotateImpl(o, sin, cos));
+    const newVertexes = this._vertexes.map((p) => p.rotateImpl(o, sin, cos));
     // note that the rotated vertexes may not be normalized, since the top-left
     // vertex may not be the top-left vertex after rotation.
     return new Triangle(newVertexes, false);
@@ -254,7 +371,7 @@ class Triangle {
    *    translating this triangle by the specified displacement.
    */
   translate(delta) {
-    const newVertexes = this.vertexes.map((p) => p.add(delta));
+    const newVertexes = this._vertexes.map((p) => p.add(delta));
     // note that the translated vertexes is also normalized
     return new Triangle(newVertexes, true);
   }
