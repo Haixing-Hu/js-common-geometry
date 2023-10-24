@@ -1,10 +1,11 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2017 - 2022
- *    Nanjing Smart Medical Investment Operation Service Co. Ltd.
- *    All rights reserved.
- *
- ******************************************************************************/
+////////////////////////////////////////////////////////////////////////////////
+//
+//    Copyright (c) 2022 - 2023.
+//    Haixing Hu, Qubit Co. Ltd.
+//
+//    All rights reserved.
+//
+////////////////////////////////////////////////////////////////////////////////
 const resolve = require('path').resolve;
 const TerserPlugin = require('terser-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
